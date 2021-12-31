@@ -59,7 +59,34 @@ PolarDB-X provides K8S deployment mode, through which you can customize the conf
 See the [K8S Quick Start](https://github.com/ApsaraDB/galaxykube#quick-start).
 
 ### To start developing PolarDB-X
-If you want to compile and install PolarDB-X from source code, or start development, you can refer the [Development Guide](https://github.com/ApsaraDB/galaxysql/blob/main/docs/en/quickstart-development.md).
+Try the following steps to build and run PolarDB-X from the source code.
+
+>NOTE: CentOS 7&8 and Ubuntu 18 and higher are currently supported.
+
+1. Build
+
+```shell
+make
+```
+
+`make` will download all repositories, install build tools and libraries, build and install PolarDB-X.
+Repositories are downloaded to `./build` dir and binaries are installed to `./build/run`. 
+You can run `make clean` to remove the installation and try build PolarDB-X again. 
+You can also run `make cleanAll` to remove everything under `./build`.
+
+This process may take more than half an hour depending on your network bandwidth.
+
+2. Run
+
+```shell
+./build/run/bin/polardb-x.sh start
+```
+
+3. Stop
+
+```shell
+./build/run/bin/polardb-x.sh stop
+```
 
 The core features of PolarDB-X community version will be consistent with the commercial version, and more manuals can be found in [the documentations of the commercial version](https://www.alibabacloud.com/help/doc-detail/71252.htm). The documentations of the community version are being compiled and will be released to the public in the near future.
 
