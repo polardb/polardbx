@@ -413,14 +413,14 @@ sources: deps
 	fi
 
 UNAME_S = $(shell uname -s)
+OS = $(shell lsb_release -si)
+V = $(shell lsb_release -r | awk '{print $$2}'|awk -F"." '{print $$1}')
 .PHONY: deps
 deps:
 ifeq ($(UNAME_S), Darwin)
 	@echo "macOS does NOT support yet."
 	@exit 1
 else
-OS = $(shell lsb_release -si)
-V = $(shell lsb_release -r | awk '{print $$2}'|awk -F"." '{print $$1}')
 ifeq ($(OS), CentOS)
 	sudo yum install -y git
 	sudo yum install -y maven
