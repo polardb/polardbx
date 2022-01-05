@@ -3,6 +3,234 @@ CN_CONF = $(BUILD_DIR)/run/galaxysql/conf/server.properties
 DN_CONF =  $(BUILD_DIR)/run/galaxyengine/my.cnf
 CDC_CONF = $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/conf/config.properties
 
+UNAME_S = $(shell uname -s)
+OS = $(shell lsb_release -si)
+V = $(shell lsb_release -r | awk '{print $$2}'|awk -F"." '{print $$1}')
+
+
+.PHONY: polardb-x
+polardb-x: gms dn cn cdc configs
+	cd $(BUILD_DIR)/run ;				\
+	if [ -d "bin" ]; then				\
+		rm -rf bin;				\
+	fi;						\
+	mkdir bin;					\
+	echo "$$START_SCRIPT" > bin/polardb-x.sh;	\
+	chmod +x bin/polardb-x.sh
+	chmod +x $(BUILD_DIR)/run/galaxysql/bin/startup.sh
+	chmod +x $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/bin/daemon.sh
+
+.PHONY: gms
+gms: sources deps 
+	cd $(BUILD_DIR)/galaxyengine;							\
+	cmake	.									\
+		-DFORCE_INSOURCE_BUILD=ON						\
+		-DCMAKE_BUILD_TYPE="Debug"						\
+		-DWITH_XENGINE_STORAGE_ENGINE=OFF					\
+		-DSYSCONFDIR="$(BUILD_DIR)/run/galaxyengine/u01/mysql"			\
+		-DCMAKE_INSTALL_PREFIX="$(BUILD_DIR)/run/galaxyengine/u01/mysql"	\
+		-DMYSQL_DATADIR="$(BUILD_DIR)/run/galaxyengine/u01/mysql/data"		\
+		-DWITH_BOOST="./extra/boost/boost_1_70_0.tar.gz" ;			\
+	make -j8 && make install
+
+.PHONY: dn
+dn: gms
+
+.PHONY: cdc
+cdc: sources deps cn
+	cd $(BUILD_DIR)/galaxycdc;								\
+	mvn install -D maven.test.skip=true -D env=release;					\
+	mkdir $(BUILD_DIR)/run/galaxycdc;							\
+	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/galaxycdc/;	\
+	cd $(BUILD_DIR)/run/galaxycdc/;								\
+	tar xzvf polardbx-binlog.tar.gz
+
+.PHONY: cn
+cn: sources deps
+	cd $(BUILD_DIR)/galaxysql;					\
+	mvn install -D maven.test.skip=true -D env=release;		\
+	mkdir $(BUILD_DIR)/run/galaxysql;				\
+	cp target/polardbx-server-*.tar.gz $(BUILD_DIR)/run/galaxysql/;	\
+	cd $(BUILD_DIR)/run/galaxysql;					\
+	tar xzvf polardbx-server-*.tar.gz
+
+
+DN_DATA_DIR = $(BUILD_DIR)/run/galaxyengine/data
+
+.PHONY: configs
+configs: gms dn cdc cn
+	# config gms & dn
+	echo "$$MY_CNF" > $(DN_CONF)
+	mkdir -p $(DN_DATA_DIR)/u01/my3306/data
+	mkdir -p $(DN_DATA_DIR)/u01/my3306/log
+	mkdir -p $(DN_DATA_DIR)/u01/my3306/run
+	mkdir -p $(DN_DATA_DIR)/u01/my3306/tmp
+	mkdir -p $(DN_DATA_DIR)/u01/my3306/mysql
+	# start gms
+	if [ -e "$(DN_DATA_DIR)/u01/my3306/data/auto.cnf" ]; then										\
+		echo "gms root account already initialized.";											\
+	else																	\
+		$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) --initialize-insecure;				\
+	fi ;																	\
+	$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D ;							\
+	awk -F"=" '/^serverPort/{$$2="=8527";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF);						\
+	awk -F"=" '/^metaDbAddr/{$$2="=127.0.0.1:4886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF);					\
+	awk -F"=" '/^metaDbXprotoPort/{$$2="=32886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF);					\
+	cd $(BUILD_DIR)/run/galaxysql/;														\
+	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:32886 -u polardbx_root -S "123456" 2>&1`;				\
+	echo "meta: $${META}";															\
+	echo "$${META}" | grep "metaDbPass" >> meta.tmp;											\
+	META_DB_PASS=`cat meta.tmp | grep "metaDbPass"`;											\
+	echo "metadb password: $${META_DB_PASS}";												\
+	ps aux|grep "$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}' |xargs kill;			\
+	if [ "" = "$${META_DB_PASS}" ]; then													\
+		echo "meta db init failed.";													\
+		exit 1;																\
+	fi;																	\
+	cat meta.tmp >> $(CN_CONF)
+	# config cdc	
+	cd $(BUILD_DIR)/run/galaxysql/;														\
+	META_DB_PASS=`cat meta.tmp | awk -F"=" '{print $$2}'`;											\
+	awk -F"=" '/^useEncryptedPassword/{$$2="=true";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);					\
+	awk -F"=" '/^polardbx.instance.id/{$$2="=polardbx-polardbx";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);			\
+	awk -F"=" '/^metaDb_url/{$$2="=jdbc:mysql://127.0.0.1:4886/polardbx_meta_db_polardbx?useSSL=false";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);			\
+	awk -F"=" '/^metaDb_username/{$$2="=my_polarx";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);					\
+	sed 's/metaDb_password.*//g' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);									\
+	cat meta.tmp >> $(CDC_CONF);														\
+	sed 's/metaDbPasswd/metaDb_password/g' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);								\
+	awk -F"=" '/^polarx_url/{$$2="=jdbc:mysql://127.0.0.1:8527/__cdc__";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);		\
+	awk -F"=" '/^polarx_username/{$$2="=polardbx_root";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);				\
+	awk -F"=" '/^polarx_password/{$$2="=UY1tQsgNvP8GJGGP8vHKKA==";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);			\
+	rm meta.tmp
+
+.PHONY: sources
+sources: deps
+	mkdir -p $(BUILD_DIR)
+	cd $(BUILD_DIR);						\
+	if [ -d "galaxysql" ]; then 					\
+		echo "galaxysql exsits.";				\
+	else								\
+		git clone https://github.com/apsaradb/galaxysql.git;	\
+		cd galaxysql;						\
+		git submodule update --init;				\
+	fi
+	cd $(BUILD_DIR);						\
+	if [ -d "galaxyengine" ]; then					\
+		echo "galaxyengine exists.";				\
+	else								\
+		git clone https://github.com/apsaradb/galaxyengine.git;	\
+		cd galaxyengine;					\
+		wget https://boostorg.jfrog.io/artifactory/main/release/1.70.0/source/boost_1_70_0.tar.gz;	\
+		mkdir -p extra/boost;					\
+		cp boost_1_70_0.tar.gz extra/boost/;			\
+		if [ "$(UNAME_S)" = "Darwin" ]; then			\
+			echo "$${VERSION_PATCH}" >> macos.patch;	\
+			git apply macos.patch;				\
+			rm macos.patch;					\
+		fi ;							\
+	fi
+	cd $(BUILD_DIR);						\
+	if [ -d "galaxycdc" ]; then					\
+		echo "galaxycdc exists.";				\
+	else								\
+		git clone https://github.com/apsaradb/galaxycdc.git;	\
+	fi
+
+.PHONY: deps
+deps:
+ifeq ($(UNAME_S), Darwin)
+	@echo "Install the following tools and libraries before your building.\n"
+	@echo "tools		: cmake3, make, automake, gcc, g++, bison, git, jdk1.8+, maven3"
+	@echo "libraries	: openssl1.1 \n\n"
+	@echo "Press any key to continue..."
+	@read -n 1
+else
+ifeq ($(OS), CentOS)
+	sudo yum install -y git
+	sudo yum install -y maven
+	sudo yum install -y java-1.8.0-openjdk-devel
+	sudo yum remove -y cmake
+	sudo yum install -y cmake3
+	if [ -e "/usr/bin/cmake" ]; then        \
+		sudo rm /usr/bin/cmake -f ;     \
+	fi
+	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
+	sudo yum install -y automake
+	sudo yum install -y bison
+	sudo yum install -y openssl-devel
+	sudo yum install -y ncurses-devel
+	sudo yum install -y libaio-devel
+ifeq ($(V), 8)
+	sudo yum install -y libtirpc-devel
+	sudo yum install -y dnf-plugins-core
+	sudo yum config-manager --set-enabled powertools
+	sudo yum install -y rpcgen
+	sudo yum groupinstall -y "Development Tools"
+	sudo yum install -y gcc gcc-c++
+endif
+ifeq ($(V), 7)
+	sudo yum install centos-release-scl
+	sudo yum install devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
+	echo "source /opt/rh/devtoolset-7/enable" |sudo tee -a /etc/profile
+	. /etc/profile
+endif
+endif
+ifeq ($(OS), Ubuntu)
+ifeq (, $(shell which git))
+	sudo apt-get install -y git
+endif
+ifeq (, $(shell which mvn))
+	sudo apt-get install -y maven
+endif
+ifeq (, $(shell which java))
+	sudo apt-get install -y openjdk-8-jdk
+endif
+ifeq (, $(shell which gcc-7))
+	sudo apt-get install -y gcc-7 g++-7
+	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 \
+		 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+	sudo update-alternatives --config gcc
+endif
+ifeq (, $(shell which make))
+	sudo apt-get install -y make
+endif
+ifeq (, $(shell which automake))
+	sudo apt-get install -y automake
+endif
+ifeq (, $(shell which cmake))
+	sudo apt-get install -y cmake
+endif
+ifeq (, $(shell which bison))
+	sudo apt-get install -y bison
+endif
+ifeq (, $(shell which pkg-config))
+	sudo apt-get install -y pkg-config
+endif
+ifeq (, $(shell ldconfig -p | grep libaio))
+	sudo apt-get install -y libaio-dev
+endif
+ifeq (, $(shell ldconfig -p | grep libncurses))
+	sudo apt-get install -y libncurses-dev
+endif
+ifeq (, $(shell ldconfig -p | grep libsasl2))
+	sudo apt-get install -y libsasl2-dev
+endif
+ifeq (, $(shell ldconfig -p | grep libldap))
+	sudo apt-get install -y libldap2-dev
+endif
+ifeq (, $(shell ldconfig -p | grep libssl))
+	sudo apt-get install -y libssl-dev
+endif
+endif
+endif
+
+clean:
+	rm -rf $(BUILD_DIR)/run
+
+cleanAll:
+	rm -rf $(BUILD_DIR)
+
+# long variables
 
 define START_SCRIPT
 #!/bin/bash
@@ -75,54 +303,6 @@ esac
 endef
 export START_SCRIPT
 
-.PHONY: polardb-x
-polardb-x: gms dn cn cdc configs
-	cd $(BUILD_DIR)/run ;				\
-	if [ -d "bin" ]; then				\
-		rm -rf bin;				\
-	fi;						\
-	mkdir bin;					\
-	echo "$$START_SCRIPT" > bin/polardb-x.sh;	\
-	chmod +x bin/polardb-x.sh
-	chmod +x $(BUILD_DIR)/run/galaxysql/bin/startup.sh
-	chmod +x $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/bin/daemon.sh
-
-.PHONY: gms
-gms: sources deps 
-	cd $(BUILD_DIR)/galaxyengine;							\
-	cmake	.									\
-		-DFORCE_INSOURCE_BUILD=ON						\
-		-DCMAKE_BUILD_TYPE="Debug"						\
-		-DWITH_XENGINE_STORAGE_ENGINE=OFF					\
-		-DSYSCONFDIR="$(BUILD_DIR)/run/galaxyengine/u01/mysql"			\
-		-DCMAKE_INSTALL_PREFIX="$(BUILD_DIR)/run/galaxyengine/u01/mysql"	\
-		-DMYSQL_DATADIR="$(BUILD_DIR)/run/galaxyengine/u01/mysql/data"		\
-		-DWITH_BOOST="./extra/boost/boost_1_70_0.tar.gz" ;			\
-	make -j8 && make install
-
-.PHONY: dn
-dn: gms
-
-.PHONY: cdc
-cdc: sources deps cn
-	cd $(BUILD_DIR)/galaxycdc;								\
-	mvn install -D maven.test.skip=true -D env=release;					\
-	mkdir $(BUILD_DIR)/run/galaxycdc;							\
-	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/galaxycdc/;	\
-	cd $(BUILD_DIR)/run/galaxycdc/;								\
-	tar xzvf polardbx-binlog.tar.gz
-
-.PHONY: cn
-cn: sources deps
-	cd $(BUILD_DIR)/galaxysql;					\
-	mvn install -D maven.test.skip=true -D env=release;		\
-	mkdir $(BUILD_DIR)/run/galaxysql;				\
-	cp target/polardbx-server-*.tar.gz $(BUILD_DIR)/run/galaxysql/;	\
-	cd $(BUILD_DIR)/run/galaxysql;					\
-	tar xzvf polardbx-server-*.tar.gz
-
-
-DN_DATA_DIR = $(BUILD_DIR)/run/galaxyengine/data
 define MY_CNF
 [mysqld]
 socket = $(DN_DATA_DIR)/u01/my3306/run/mysql.sock
@@ -338,171 +518,113 @@ innodb_doublewrite=1
 endef
 export MY_CNF
 
-.PHONY: configs
-configs: gms dn cdc cn
-	# config gms & dn
-	echo "$$MY_CNF" > $(DN_CONF)
-	mkdir -p $(DN_DATA_DIR)/u01/my3306/data
-	mkdir -p $(DN_DATA_DIR)/u01/my3306/log
-	mkdir -p $(DN_DATA_DIR)/u01/my3306/run
-	mkdir -p $(DN_DATA_DIR)/u01/my3306/tmp
-	mkdir -p $(DN_DATA_DIR)/u01/my3306/mysql
-	# start gms
-	if [ -e "$(DN_DATA_DIR)/u01/my3306/data/auto.cnf" ]; then										\
-		echo "gms root account already initialized.";											\
-	else																	\
-		$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) --initialize-insecure;				\
-	fi ;																	\
-	$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D ;							\
-	awk -F"=" '/^serverPort/{$$2="=8527";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF);						\
-	awk -F"=" '/^metaDbAddr/{$$2="=127.0.0.1:4886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF);					\
-	awk -F"=" '/^metaDbXprotoPort/{$$2="=32886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF);					\
-	cd $(BUILD_DIR)/run/galaxysql/;														\
-	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:32886 -r "" -u polardbx_root -S "123456" 2>&1`;				\
-	echo "meta: $${META}";															\
-	echo "$${META}" | grep "metaDbPass" >> meta.tmp;											\
-	META_DB_PASS=`cat meta.tmp | grep "metaDbPass"`;											\
-	echo "metadb password: $${META_DB_PASS}";												\
-	ps aux|grep "$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}' |xargs kill;			\
-	if [ "" = "$${META_DB_PASS}" ]; then													\
-		echo "meta db init failed.";													\
-		exit 1;																\
-	fi;																	\
-	cat meta.tmp >> $(CN_CONF)
-	# config cdc	
-	cd $(BUILD_DIR)/run/galaxysql/;														\
-	META_DB_PASS=`cat meta.tmp | awk -F"=" '{print $$2}'`;											\
-	awk -F"=" '/^useEncryptedPassword/{$$2="=true";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);					\
-	awk -F"=" '/^polardbx.instance.id/{$$2="=polardbx-polardbx";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);			\
-	awk -F"=" '/^metaDb_url/{$$2="=jdbc:mysql://127.0.0.1:4886/polardbx_meta_db_polardbx?useSSL=false";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);			\
-	awk -F"=" '/^metaDb_username/{$$2="=my_polarx";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);					\
-	sed 's/metaDb_password.*//g' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);									\
-	cat meta.tmp >> $(CDC_CONF);														\
-	sed 's/metaDbPasswd/metaDb_password/g' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);								\
-	awk -F"=" '/^polarx_url/{$$2="=jdbc:mysql://127.0.0.1:8527/__cdc__";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);		\
-	awk -F"=" '/^polarx_username/{$$2="=polardbx_root";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);				\
-	awk -F"=" '/^polarx_password/{$$2="=UY1tQsgNvP8GJGGP8vHKKA==";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF);			\
-	rm meta.tmp
+define VERSION_PATCH
+diff --git a/VERSION b/MYSQL_VERSION
+similarity index 100%
+rename from VERSION
+rename to MYSQL_VERSION
+diff --git a/cmake/mysql_version.cmake b/cmake/mysql_version.cmake
+index bed6e9f0..b76b7ba4 100644
+--- a/cmake/mysql_version.cmake
++++ b/cmake/mysql_version.cmake
+@@ -28,17 +28,17 @@ SET(SHARED_LIB_MAJOR_VERSION "21")
+ SET(SHARED_LIB_MINOR_VERSION "1")
+ SET(PROTOCOL_VERSION "10")
 
-.PHONY: sources
-sources: deps
-	mkdir -p $(BUILD_DIR)
-	cd $(BUILD_DIR);						\
-	if [ -d "galaxysql" ]; then 					\
-		echo "galaxysql exsits.";				\
-	else								\
-		git clone https://github.com/apsaradb/galaxysql.git;	\
-		cd galaxysql;						\
-		git submodule update --init;				\
-	fi
-	cd $(BUILD_DIR);						\
-	if [ -d "galaxyengine" ]; then					\
-		echo "galaxyengine exists.";				\
-	else								\
-		git clone https://github.com/apsaradb/galaxyengine.git;	\
-		cd galaxyengine;					\
-		wget https://boostorg.jfrog.io/artifactory/main/release/1.70.0/source/boost_1_70_0.tar.gz;	\
-		mkdir extra/boost;					\
-		cp boost_1_70_0.tar.gz extra/boost/;			\
-	fi
-	cd $(BUILD_DIR);						\
-	if [ -d "galaxycdc" ]; then					\
-		echo "galaxycdc exists.";				\
-	else								\
-		git clone https://github.com/apsaradb/galaxycdc.git;	\
-	fi
+-# Generate "something" to trigger cmake rerun when VERSION changes
++# Generate "something" to trigger cmake rerun when MYSQL_VERSION changes
+ CONFIGURE_FILE(
+-  $${CMAKE_SOURCE_DIR}/VERSION
++  $${CMAKE_SOURCE_DIR}/MYSQL_VERSION
+   $${CMAKE_BINARY_DIR}/VERSION.dep
+ )
 
-UNAME_S = $(shell uname -s)
-.PHONY: deps
-deps:
-ifeq ($(UNAME_S), Darwin)
-	@echo "macOS does NOT support yet."
-	@exit 1
-else
-OS = $(shell lsb_release -si)
-V = $(shell lsb_release -r | awk '{print $$2}'|awk -F"." '{print $$1}')
-ifeq ($(OS), CentOS)
-	sudo yum install -y git
-	sudo yum install -y maven
-	sudo yum install -y java-1.8.0-openjdk-devel
-	sudo yum remove -y cmake
-	sudo yum install -y cmake3
-	if [ -e "/usr/bin/cmake" ]; then        \
-		sudo rm /usr/bin/cmake -f ;     \
-	fi
-	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
-	sudo yum install -y automake
-	sudo yum install -y bison
-	sudo yum install -y openssl-devel
-	sudo yum install -y ncurses-devel
-	sudo yum install -y libaio-devel
-ifeq ($(V), 8)
-	sudo yum install -y libtirpc-devel
-	sudo yum install -y dnf-plugins-core
-	sudo yum config-manager --set-enabled powertools
-	sudo yum install -y rpcgen
-	sudo yum groupinstall -y "Development Tools"
-	sudo yum install -y gcc gcc-c++
-endif
-ifeq ($(V), 7)
-	sudo yum install centos-release-scl
-	sudo yum install devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
-	echo "source /opt/rh/devtoolset-7/enable" |sudo tee -a /etc/profile
-	. /etc/profile
-endif
-endif
-ifeq ($(OS), Ubuntu)
-ifeq (, $(shell which git))
-	sudo apt-get install -y git
-endif
-ifeq (, $(shell which mvn))
-	sudo apt-get install -y maven
-endif
-ifeq (, $(shell which java))
-	sudo apt-get install -y openjdk-8-jdk
-endif
-ifeq (, $(shell which gcc-7))
-	sudo apt-get install -y gcc-7 g++-7
-	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 \
-		 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-	sudo update-alternatives --config gcc
-endif
-ifeq (, $(shell which make))
-	sudo apt-get install -y make
-endif
-ifeq (, $(shell which automake))
-	sudo apt-get install -y automake
-endif
-ifeq (, $(shell which cmake))
-	sudo apt-get install -y cmake
-endif
-ifeq (, $(shell which bison))
-	sudo apt-get install -y bison
-endif
-ifeq (, $(shell which pkg-config))
-	sudo apt-get install -y pkg-config
-endif
-ifeq (, $(shell ldconfig -p | grep libaio))
-	sudo apt-get install -y libaio-dev
-endif
-ifeq (, $(shell ldconfig -p | grep libncurses))
-	sudo apt-get install -y libncurses-dev
-endif
-ifeq (, $(shell ldconfig -p | grep libsasl2))
-	sudo apt-get install -y libsasl2-dev
-endif
-ifeq (, $(shell ldconfig -p | grep libldap))
-	sudo apt-get install -y libldap2-dev
-endif
-ifeq (, $(shell ldconfig -p | grep libssl))
-	sudo apt-get install -y libssl-dev
-endif
-endif
-endif
+-# Read value for a variable from VERSION.
++# Read value for a variable from MYSQL_VERSION.
 
-clean:
-	rm -rf $(BUILD_DIR)/run
+ MACRO(MYSQL_GET_CONFIG_VALUE keyword var)
+  IF(NOT $${var})
+-   FILE (STRINGS $${CMAKE_SOURCE_DIR}/VERSION str REGEX "^[ ]*$${keyword}=")
++   FILE (STRINGS $${CMAKE_SOURCE_DIR}/MYSQL_VERSION str REGEX "^[ ]*$${keyword}=")
+    IF(str)
+      STRING(REPLACE "$${keyword}=" "" str $${str})
+      STRING(REGEX REPLACE  "[ ].*" ""  str "$${str}")
+@@ -59,7 +59,7 @@ MACRO(GET_MYSQL_VERSION)
+   IF(NOT DEFINED MAJOR_VERSION OR
+      NOT DEFINED MINOR_VERSION OR
+      NOT DEFINED PATCH_VERSION)
+-    MESSAGE(FATAL_ERROR "VERSION file cannot be parsed.")
++    MESSAGE(FATAL_ERROR "MYSQL_VERSION file cannot be parsed.")
+   ENDIF()
 
-cleanAll:
-	rm -rf $(BUILD_DIR)
+   SET(VERSION
+@@ -80,7 +80,7 @@ MACRO(GET_MYSQL_VERSION)
+   SET(CPACK_PACKAGE_VERSION_PATCH $${PATCH_VERSION})
 
+   IF(WITH_NDBCLUSTER)
+-    # Read MySQL Cluster version values from VERSION, these are optional
++    # Read MySQL Cluster version values from MYSQL_VERSION, these are optional
+     # as by default MySQL Cluster is using the MySQL Server version
+     MYSQL_GET_CONFIG_VALUE("MYSQL_CLUSTER_VERSION_MAJOR" CLUSTER_MAJOR_VERSION)
+     MYSQL_GET_CONFIG_VALUE("MYSQL_CLUSTER_VERSION_MINOR" CLUSTER_MINOR_VERSION)
+@@ -89,12 +89,12 @@ MACRO(GET_MYSQL_VERSION)
+
+     # Set MySQL Cluster version same as the MySQL Server version
+     # unless a specific MySQL Cluster version has been specified
+-    # in the VERSION file. This is the version used when creating
++    # in the MYSQL_VERSION file. This is the version used when creating
+     # the cluster package names as well as by all the NDB binaries.
+     IF(DEFINED CLUSTER_MAJOR_VERSION AND
+        DEFINED CLUSTER_MINOR_VERSION AND
+        DEFINED CLUSTER_PATCH_VERSION)
+-      # Set MySQL Cluster version to the specific version defined in VERSION
++      # Set MySQL Cluster version to the specific version defined in MYSQL_VERSION
+       SET(MYSQL_CLUSTER_VERSION "$${CLUSTER_MAJOR_VERSION}")
+       SET(MYSQL_CLUSTER_VERSION
+         "$${MYSQL_CLUSTER_VERSION}.$${CLUSTER_MINOR_VERSION}")
+@@ -106,7 +106,7 @@ MACRO(GET_MYSQL_VERSION)
+       ENDIF()
+     ELSE()
+       # Set MySQL Cluster version to the same as MySQL Server, possibly
+-      # overriding the extra version with value specified in VERSION
++      # overriding the extra version with value specified in MYSQL_VERSION
+       # This might be used when MySQL Cluster is still released as DMR
+       # while MySQL Server is already GA.
+       SET(MYSQL_CLUSTER_VERSION
+diff --git a/plugin/galaxy/CMakeLists.txt b/plugin/galaxy/CMakeLists.txt.bak
+similarity index 100%
+rename from plugin/galaxy/CMakeLists.txt
+rename to plugin/galaxy/CMakeLists.txt.bak
+diff --git a/plugin/performance_point/CMakeLists.txt b/plugin/performance_point/CMakeLists.txt.bak
+similarity index 100%
+rename from plugin/performance_point/CMakeLists.txt
+rename to plugin/performance_point/CMakeLists.txt.bak
+diff --git a/sql/mysqld.cc b/sql/mysqld.cc
+index 9fe6d12d..eea38fa7 100644
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -869,6 +869,8 @@ bool opt_large_files = sizeof(my_off_t) > 4;
+ static bool opt_autocommit;  ///< for --autocommit command-line option
+ static get_opt_arg_source source_autocommit;
+
++
++bool opt_performance_point_enabled = false;
+ /*
+   Used with --help for detailed option
+ */
+diff --git a/sql/package/package_cache.cc b/sql/package/package_cache.cc
+index 8a81734e..30ec6a08 100644
+--- a/sql/package/package_cache.cc
++++ b/sql/package/package_cache.cc
+@@ -76,7 +76,7 @@ static const T *find_package_element(const std::string &schema_name,
+   return Package::instance()->lookup_element<T>(schema_name, element_name);
+ }
+ /* Template instantiation */
+-template static const Proc *find_package_element(
++template const Proc *find_package_element(
+     const std::string &schema_name, const std::string &element_name);
+
+ /**
+endef
+
+export VERSION_PATCH
