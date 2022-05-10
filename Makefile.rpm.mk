@@ -1,7 +1,10 @@
+BUILD_DIR = $(shell pwd)/build
 CN_CONF = $(DESTDIR)/galaxysql/conf/server.properties
 DN_CONF =  $(DESTDIR)/galaxyengine/my.cnf
 CDC_CONF = $(DESTDIR)/galaxycdc/polardbx-binlog.standalone/conf/config.properties
 DN_DATA_DIR = $(DESTDIR)/galaxyengine/data
+
+UNAME_S = $(shell uname -s)
 
 .PHONY: polardb-x
 polardb-x: gms dn cn cdc
@@ -97,6 +100,47 @@ init:
 	awk -F"=" '/^polarx_username/{$$2="=polardbx_root";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF)
 	awk -F"=" '/^polarx_password/{$$2="=UY1tQsgNvP8GJGGP8vHKKA==";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF)
 	rm $(DESTDIR)/galaxysql/meta.tmp
+
+.PHONY: sources
+sources:
+	if [ ! -d "$(BUILD_DIR)" ]; then								\
+		mkdir -p $(BUILD_DIR);										\
+	fi
+
+	cd $(BUILD_DIR);												\
+	if [ -d "galaxysql" ]; then										\
+		cd galaxysql;												\
+		git pull;													\
+	else															\
+		git clone https://github.com/apsaradb/galaxysql.git;		\
+		cd galaxysql;												\
+		git submodule update --init;								\
+	fi
+
+	cd $(BUILD_DIR);												\
+	if [ -d "galaxyengine" ]; then									\
+		cd galaxyengine;											\
+		git pull;													\
+	else															\
+		git clone https://github.com/apsaradb/galaxyengine.git;		\
+		cd galaxyengine;											\
+		wget https://boostorg.jfrog.io/artifactory/main/release/1.70.0/source/boost_1_70_0.tar.gz;		\
+		mkdir -p extra/boost;										\
+		cp boost_1_70_0.tar.gz extra/boost/;						\
+		if [ "$(UNAME_S)" = "Darwin" ]; then						\
+			echo "$${VERSION_PATCH}" >> macos.patch;				\
+			git apply macos.patch;									\
+			rm macos.patch;											\
+		fi ;														\
+	fi
+
+	cd $(BUILD_DIR);												\
+	if [ -d "galaxycdc" ]; then										\
+		cd galaxycdc;												\
+		git pull;													\
+	else															\
+		git clone https://github.com/apsaradb/galaxycdc.git;		\
+	fi
 
 clean:
 	rm -rf $(DESTDIR)/bin
@@ -441,3 +485,114 @@ loose_daemon_memcached_option="-t 32 -c 8000 -p15506"
 innodb_doublewrite=1
 endef
 export MY_CNF
+
+define VERSION_PATCH
+diff --git a/VERSION b/MYSQL_VERSION
+similarity index 100%
+rename from VERSION
+rename to MYSQL_VERSION
+diff --git a/cmake/mysql_version.cmake b/cmake/mysql_version.cmake
+index bed6e9f0..b76b7ba4 100644
+--- a/cmake/mysql_version.cmake
++++ b/cmake/mysql_version.cmake
+@@ -28,17 +28,17 @@ SET(SHARED_LIB_MAJOR_VERSION "21")
+ SET(SHARED_LIB_MINOR_VERSION "1")
+ SET(PROTOCOL_VERSION "10")
+
+-# Generate "something" to trigger cmake rerun when VERSION changes
++# Generate "something" to trigger cmake rerun when MYSQL_VERSION changes
+ CONFIGURE_FILE(
+-  $${CMAKE_SOURCE_DIR}/VERSION
++  $${CMAKE_SOURCE_DIR}/MYSQL_VERSION
+   $${CMAKE_BINARY_DIR}/VERSION.dep
+ )
+
+-# Read value for a variable from VERSION.
++# Read value for a variable from MYSQL_VERSION.
+
+ MACRO(MYSQL_GET_CONFIG_VALUE keyword var)
+  IF(NOT $${var})
+-   FILE (STRINGS $${CMAKE_SOURCE_DIR}/VERSION str REGEX "^[ ]*$${keyword}=")
++   FILE (STRINGS $${CMAKE_SOURCE_DIR}/MYSQL_VERSION str REGEX "^[ ]*$${keyword}=")
+    IF(str)
+      STRING(REPLACE "$${keyword}=" "" str $${str})
+      STRING(REGEX REPLACE  "[ ].*" ""  str "$${str}")
+@@ -59,7 +59,7 @@ MACRO(GET_MYSQL_VERSION)
+   IF(NOT DEFINED MAJOR_VERSION OR
+      NOT DEFINED MINOR_VERSION OR
+      NOT DEFINED PATCH_VERSION)
+-    MESSAGE(FATAL_ERROR "VERSION file cannot be parsed.")
++    MESSAGE(FATAL_ERROR "MYSQL_VERSION file cannot be parsed.")
+   ENDIF()
+
+   SET(VERSION
+@@ -80,7 +80,7 @@ MACRO(GET_MYSQL_VERSION)
+   SET(CPACK_PACKAGE_VERSION_PATCH $${PATCH_VERSION})
+
+   IF(WITH_NDBCLUSTER)
+-    # Read MySQL Cluster version values from VERSION, these are optional
++    # Read MySQL Cluster version values from MYSQL_VERSION, these are optional
+     # as by default MySQL Cluster is using the MySQL Server version
+     MYSQL_GET_CONFIG_VALUE("MYSQL_CLUSTER_VERSION_MAJOR" CLUSTER_MAJOR_VERSION)
+     MYSQL_GET_CONFIG_VALUE("MYSQL_CLUSTER_VERSION_MINOR" CLUSTER_MINOR_VERSION)
+@@ -89,12 +89,12 @@ MACRO(GET_MYSQL_VERSION)
+
+     # Set MySQL Cluster version same as the MySQL Server version
+     # unless a specific MySQL Cluster version has been specified
+-    # in the VERSION file. This is the version used when creating
++    # in the MYSQL_VERSION file. This is the version used when creating
+     # the cluster package names as well as by all the NDB binaries.
+     IF(DEFINED CLUSTER_MAJOR_VERSION AND
+        DEFINED CLUSTER_MINOR_VERSION AND
+        DEFINED CLUSTER_PATCH_VERSION)
+-      # Set MySQL Cluster version to the specific version defined in VERSION
++      # Set MySQL Cluster version to the specific version defined in MYSQL_VERSION
+       SET(MYSQL_CLUSTER_VERSION "$${CLUSTER_MAJOR_VERSION}")
+       SET(MYSQL_CLUSTER_VERSION
+         "$${MYSQL_CLUSTER_VERSION}.$${CLUSTER_MINOR_VERSION}")
+@@ -106,7 +106,7 @@ MACRO(GET_MYSQL_VERSION)
+       ENDIF()
+     ELSE()
+       # Set MySQL Cluster version to the same as MySQL Server, possibly
+-      # overriding the extra version with value specified in VERSION
++      # overriding the extra version with value specified in MYSQL_VERSION
+       # This might be used when MySQL Cluster is still released as DMR
+       # while MySQL Server is already GA.
+       SET(MYSQL_CLUSTER_VERSION
+diff --git a/plugin/galaxy/CMakeLists.txt b/plugin/galaxy/CMakeLists.txt.bak
+similarity index 100%
+rename from plugin/galaxy/CMakeLists.txt
+rename to plugin/galaxy/CMakeLists.txt.bak
+diff --git a/plugin/performance_point/CMakeLists.txt b/plugin/performance_point/CMakeLists.txt.bak
+similarity index 100%
+rename from plugin/performance_point/CMakeLists.txt
+rename to plugin/performance_point/CMakeLists.txt.bak
+diff --git a/sql/mysqld.cc b/sql/mysqld.cc
+index 9fe6d12d..eea38fa7 100644
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -869,6 +869,8 @@ bool opt_large_files = sizeof(my_off_t) > 4;
+ static bool opt_autocommit;  ///< for --autocommit command-line option
+ static get_opt_arg_source source_autocommit;
+
++
++bool opt_performance_point_enabled = false;
+ /*
+   Used with --help for detailed option
+ */
+diff --git a/sql/package/package_cache.cc b/sql/package/package_cache.cc
+index 8a81734e..30ec6a08 100644
+--- a/sql/package/package_cache.cc
++++ b/sql/package/package_cache.cc
+@@ -76,7 +76,7 @@ static const T *find_package_element(const std::string &schema_name,
+   return Package::instance()->lookup_element<T>(schema_name, element_name);
+ }
+ /* Template instantiation */
+-template static const Proc *find_package_element(
++template const Proc *find_package_element(
+     const std::string &schema_name, const std::string &element_name);
+
+ /**
+endef
+
+export VERSION_PATCH
