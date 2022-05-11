@@ -27,6 +27,8 @@ gms: sources deps
 		-DFORCE_INSOURCE_BUILD=ON						\
 		-DCMAKE_BUILD_TYPE="Debug"						\
 		-DWITH_XENGINE_STORAGE_ENGINE=OFF					\
+		-DMYSQL_MAINTAINER_MODE=0							\
+		-DWITH_SSL=openssl									\
 		-DSYSCONFDIR="$(BUILD_DIR)/run/galaxyengine/u01/mysql"			\
 		-DCMAKE_INSTALL_PREFIX="$(BUILD_DIR)/run/galaxyengine/u01/mysql"	\
 		-DMYSQL_DATADIR="$(BUILD_DIR)/run/galaxyengine/u01/mysql/data"		\
