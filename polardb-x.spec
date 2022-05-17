@@ -3,8 +3,8 @@
 %undefine __brp_strip_static_archive
 
 Name:           polardb-x
-Version:        0.5.0
-Release:        1%{?dist}
+Version:        2.1.0
+Release:        2%{?dist}
 Summary:        A MySQL compatiable distributed SQL database
 
 License:        GPLv2,Apache License 2.0
