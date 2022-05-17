@@ -178,6 +178,7 @@ init() {
 	# start gms
 	$(DESTDIR)/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) --initialize-insecure
 	$(DESTDIR)/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
+	sleep 2
 	$(DESTDIR)/galaxyengine/u01/mysql/bin/mysql -h127.0.0.1 -P4886 -uroot -e "alter user 'root'@'localhost' identified by 'admin'"
 	$(DESTDIR)/galaxyengine/u01/mysql/bin/mysql -h127.0.0.1 -P4886 -uroot -padmin -e "create user 'root'@'%' identified by 'admin'"
 	$(DESTDIR)/galaxyengine/u01/mysql/bin/mysql -h127.0.0.1 -P4886 -uroot -padmin -e "grant all on *.* to 'root'@'%'"
