@@ -199,6 +199,8 @@ init() {
 	fi
 	cat $(DESTDIR)/galaxysql/meta.tmp >> $(CN_CONF)
 
+	$(DESTDIR)/galaxyengine/u01/mysql/bin/mysql -h127.0.0.1 -P4886 -uroot -padmin -e "use polardbx_meta_db_polardbx; insert into server_info values(default, now(), now(), 'polardb-x', 0, '127.0.0.1', 8527, 8528, 3406, 8529, 0, NULL, NULL, NULL, 2, 2147483647, 'polardb-x');"
+
 	# config cdc
 	awk -F"=" '/^useEncryptedPassword/{$$2="=true";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF)
 	awk -F"=" '/^polardbx.instance.id/{$$2="=polardbx-polardbx";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF)

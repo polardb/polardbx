@@ -2,10 +2,10 @@ from centos:7 as build
 
 WORKDIR /home/admin
 
-COPY polardb-x-0.5.0-1.el7.centos.x86_64.rpm /home/admin/
+COPY polardb-x-2.1.0-2.el7.centos.x86_64.rpm /home/admin/
 
-RUN rpm -ivh polardb-x-0.5.0-1.el7.centos.x86_64.rpm --nodeps &&    \
-    rm polardb-x-0.5.0-1.el7.centos.x86_64.rpm
+RUN rpm -ivh polardb-x-2.1.0-2.el7.centos.x86_64.rpm --nodeps &&    \
+    rm polardb-x-2.1.0-2.el7.centos.x86_64.rpm
 
 from centos:7
 
