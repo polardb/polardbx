@@ -1,5 +1,6 @@
 BUILD_DIR = $(shell pwd)/build
 CN_CONF = $(DESTDIR)/galaxysql/conf/server.properties
+CN_STARTUP = $(DESTDIR)/galaxysql/bin/startup.sh
 DN_CONF =  $(DESTDIR)/galaxyengine/my.cnf
 CDC_CONF = $(DESTDIR)/galaxycdc/polardbx-binlog.standalone/conf/config.properties
 DN_DATA_DIR = $(DESTDIR)/galaxyengine/data
@@ -76,6 +77,9 @@ init:
 	awk -F"=" '/^serverPort/{$$2="=8527";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^metaDbAddr/{$$2="=127.0.0.1:4886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^metaDbXprotoPort/{$$2="=32886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
+	sed 's/Xms[0-9]\+g/Xms2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
+	sed 's/Xmx[0-9]\+g/Xmx2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
+
 	cd $(DESTDIR)/galaxysql/;											\
 	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:32886 -u polardbx_root -S "123456" 2>&1`;		\
 	echo "$${META}" | grep "metaDbPass" >> $(DESTDIR)/galaxysql/meta.tmp
@@ -187,6 +191,9 @@ init() {
 	awk -F"=" '/^serverPort/{$$2="=8527";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^metaDbAddr/{$$2="=127.0.0.1:4886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^metaDbXprotoPort/{$$2="=32886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
+	sed 's/Xms[0-9]\+g/Xms2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
+	sed 's/Xmx[0-9]\+g/Xmx2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
+
 	cd $(DESTDIR)/galaxysql/
 	META=`bin/startup.sh -I -P asdf1234ghjk5678 -r "admin" -d 127.0.0.1:4886:32886 -u polardbx_root -S "123456" 2>&1`
 	echo "$${META}" | grep "metaDbPass" >> $(DESTDIR)/galaxysql/meta.tmp

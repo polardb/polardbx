@@ -114,7 +114,7 @@ function start() {
 
 retry_interval=5
 retry_cnt=0
-retry_limit=1
+retry_limit=10
 if [[ "$#" -ge 1 ]]; then
   retry_limit=$1
 fi
