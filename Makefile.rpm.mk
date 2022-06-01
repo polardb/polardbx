@@ -3,6 +3,7 @@ CN_CONF = $(DESTDIR)/galaxysql/conf/server.properties
 CN_STARTUP = $(DESTDIR)/galaxysql/bin/startup.sh
 DN_CONF =  $(DESTDIR)/galaxyengine/my.cnf
 CDC_CONF = $(DESTDIR)/galaxycdc/polardbx-binlog.standalone/conf/config.properties
+CDC_STARTUP = $(DESTDIR)/galaxycdc/polardbx-binlog.standalone/bin/start.sh
 DN_DATA_DIR = $(DESTDIR)/galaxyengine/data
 
 UNAME_S = $(shell uname -s)
@@ -79,6 +80,7 @@ init:
 	awk -F"=" '/^metaDbXprotoPort/{$$2="=32886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	sed 's/Xms[0-9]\+g/Xms2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
 	sed 's/Xmx[0-9]\+g/Xmx2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
+	chmod +x $(CN_STARTUP)
 
 	cd $(DESTDIR)/galaxysql/;											\
 	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:32886 -u polardbx_root -S "123456" 2>&1`;		\
@@ -193,6 +195,7 @@ init() {
 	awk -F"=" '/^metaDbXprotoPort/{$$2="=32886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	sed 's/Xms[0-9]\+g/Xms2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
 	sed 's/Xmx[0-9]\+g/Xmx2g/g' $(CN_STARTUP) > tmp && mv tmp $(CN_STARTUP)
+	chmod +x $(CN_STARTUP)
 
 	cd $(DESTDIR)/galaxysql/
 	META=`bin/startup.sh -I -P asdf1234ghjk5678 -r "admin" -d 127.0.0.1:4886:32886 -u polardbx_root -S "123456" 2>&1`
@@ -220,6 +223,8 @@ init() {
 	awk -F"=" '/^polarx_username/{$$2="=polardbx_root";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF)
 	awk -F"=" '/^polarx_password/{$$2="=UY1tQsgNvP8GJGGP8vHKKA==";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF)
 	rm $(DESTDIR)/galaxysql/meta.tmp
+	sed '14 aMEMORY=512' $(CDC_STARTUP) > tmp && mv tmp $(CDC_STARTUP)
+	chmod +x $(CDC_STARTUP)
 }
 
 start() {
