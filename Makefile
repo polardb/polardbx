@@ -153,10 +153,6 @@ ifeq ($(OS), CentOS)
 	sudo yum install -y java-1.8.0-openjdk-devel
 	sudo yum remove -y cmake
 	sudo yum install -y cmake3
-	if [ -e "/usr/bin/cmake" ]; then        \
-		sudo rm /usr/bin/cmake -f ;     \
-	fi
-	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
 	sudo yum install -y automake
 	sudo yum install -y bison
 	sudo yum install -y openssl-devel
@@ -165,12 +161,16 @@ ifeq ($(OS), CentOS)
 ifeq ($(V), 8)
 	sudo yum install -y libtirpc-devel
 	sudo yum install -y dnf-plugins-core
-	sudo yum config-manager --set-enabled powertools
+	sudo yum config-manager --set-enabled PowerTools
 	sudo yum install -y rpcgen
 	sudo yum groupinstall -y "Development Tools"
 	sudo yum install -y gcc gcc-c++
 endif
 ifeq ($(V), 7)
+	if [ -e "/usr/bin/cmake" ]; then        \
+		sudo rm /usr/bin/cmake -f ;     \
+	fi
+	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
 	sudo yum install centos-release-scl
 	sudo yum install devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
 	echo "source /opt/rh/devtoolset-7/enable" |sudo tee -a /etc/profile
