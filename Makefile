@@ -171,8 +171,8 @@ ifeq ($(V), 7)
 		sudo rm /usr/bin/cmake -f ;     \
 	fi
 	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
-	sudo yum install centos-release-scl
-	sudo yum install devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
+	sudo yum install -y centos-release-scl
+	sudo yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
 	echo "source /opt/rh/devtoolset-7/enable" |sudo tee -a /etc/profile
 	. /etc/profile
 endif
