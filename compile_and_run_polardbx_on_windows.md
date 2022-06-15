@@ -2,10 +2,12 @@
 
 ## 安装WSL
 参考官方文档：https://docs.microsoft.com/en-us/windows/wsl/install
+
 建议安装并升级到WSL2（后续可以用来运行Docker）
 
 ## 安装CentOS 7
 微软商店里没有提供Centos 7，可以在这里下载：https://github.com/mishamosher/CentOS-WSL/releases
+
 验证过的版本是：https://github.com/mishamosher/CentOS-WSL/releases/tag/7.9-2111
 
 解压后运行CentOS7.exe（右键以管理员身份运行）即可完成安装，再次运行CentOS7.exe即可打开一个终端。
