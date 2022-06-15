@@ -20,18 +20,25 @@ yum install wget -y
 ```
 cd /etc/yum.repos.d/ && \
 wget -O CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo && \
-yum clean all && \
+yum clean all
+
 cd /root
 ```
 
 3. 安装工具链
 ```
 yum install  -y git
+
 yum install -y centos-release-scl
+
 yum install -y mysql
+
 yum  install -y java-1.8.0-openjdk-devel
+
 yum install -y make automake  openssl-devel ncurses-devel bison libaio-devel
+
 yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
+
 echo "source /opt/rh/devtoolset-7/enable" >>/etc/profile && source /etc/profile
 ```
 
@@ -51,7 +58,8 @@ CN与DN都不允许以root用户启动，需要创建一个用户。
 useradd -ms /bin/bash admin && \
 echo "admin:admin" | chpasswd && \
 echo "admin    ALL=(ALL)    NOPASSWD: ALL" >> /etc/sudoers &&   \
-su admin && \
+su admin
+
 cd /home/admin
 ```
 
@@ -60,6 +68,7 @@ cd /home/admin
 仓库中的maven版本太老了，装一个最新版本。
 ```
 wget https://dlcdn.apache.org/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz && tar -zxvf apache-maven-3.8.6-bin.tar.gz
+
 echo 'PATH=/home/admin/apache-maven-3.8.6/bin:$PATH' >> /home/admin/.bashrc && \
     echo "export PATH" >> /home/admin/.bashrc && \
 	source  /home/admin/.bashrc
