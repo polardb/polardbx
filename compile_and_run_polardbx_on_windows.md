@@ -95,6 +95,7 @@ vi /home/admin/apache-maven-3.8.6/conf/settings.xml
 1. 下载编译工程
 ```
 git clone https://github.com/ApsaraDB/PolarDB-X.git
+
 cd PolarDB-X
 ```
 
