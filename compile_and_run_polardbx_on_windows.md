@@ -27,15 +27,15 @@ cd /root
 
 3. 安装工具链
 ```
-yum install  -y git
+yum install -y git
 
 yum install -y centos-release-scl
 
 yum install -y mysql
 
-yum  install -y java-1.8.0-openjdk-devel
+yum install -y java-1.8.0-openjdk-devel
 
-yum install -y make automake  openssl-devel ncurses-devel bison libaio-devel
+yum install -y make automake openssl-devel ncurses-devel bison libaio-devel
 
 yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
 
