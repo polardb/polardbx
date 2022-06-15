@@ -6,7 +6,7 @@
 建议安装并升级到WSL2（后续可以用来运行Docker）
 
 ## 安装CentOS 7
-微软商店里没有提供Centos 7，可以在这里下载：https://github.com/mishamosher/CentOS-WSL/releases
+微软商店里没有提供CentOS 7，可以在这里下载：https://github.com/mishamosher/CentOS-WSL/releases
 
 验证过的版本是：https://github.com/mishamosher/CentOS-WSL/releases/tag/7.9-2111
 
@@ -38,6 +38,7 @@ echo "source /opt/rh/devtoolset-7/enable" >>/etc/profile && source /etc/profile
 ```
 
 4. 安装cmake：
+
 仓库里没有cmake3，需要从源码编译安装
 
 ```
@@ -46,6 +47,7 @@ wget https://cmake.org/files/v3.23/cmake-3.23.2.tar.gz && tar -zxvf cmake-3.23.2
 ```
 
 5. 创建admin用户：
+
 CN与DN都不允许以root用户启动，需要创建一个用户。
 ```
 useradd -ms /bin/bash admin && \
@@ -56,6 +58,7 @@ cd /home/admin
 ```
 
 6. 安装maven：
+
 仓库中的maven版本太老了，装一个最新版本。
 ```
 wget https://dlcdn.apache.org/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz && tar -zxvf apache-maven-3.8.6-bin.tar.gz
