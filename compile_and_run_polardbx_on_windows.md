@@ -3,8 +3,6 @@
 ## 安装WSL
 参考官方文档：https://docs.microsoft.com/en-us/windows/wsl/install
 
-建议安装并升级到WSL2（后续可以用来运行Docker）
-
 ## 安装CentOS 7
 微软商店里没有提供CentOS 7，可以在这里下载：https://github.com/mishamosher/CentOS-WSL/releases
 
