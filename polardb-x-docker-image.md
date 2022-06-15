@@ -31,7 +31,7 @@ PolarDB-X 高度兼容 MySQL 语法，与分布式相关的特性会对 SQL 语�
 select * from information_schema.schemata;
 
 # 创建分区表
-create database polarx_example partition_mode='partitioning';
+create database polarx_example mode='auto';
 
 use polarx_example;
 
