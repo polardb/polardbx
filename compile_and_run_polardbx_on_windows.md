@@ -203,3 +203,9 @@ git submodule update --init
 ![image](https://user-images.githubusercontent.com/2645985/173987109-7ca46936-7f87-4c16-a0fe-73c7d5ab9bde.png)
 
 10. 再次运行`com.alibaba.polardbx.server.TddlLauncher`即可
+
+11. mysql终端可以连上本地的CN了
+
+```
+mysql -h 127.0.0.1 -upolardbx_root -p123456 -P8527
+```
