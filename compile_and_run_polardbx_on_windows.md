@@ -174,7 +174,9 @@ ip addr
 
 ```
 git clone https://github.com/ApsaraDB/galaxysql.git
+
 cd galaxysql
+
 git submodule update --init
 ```
 
