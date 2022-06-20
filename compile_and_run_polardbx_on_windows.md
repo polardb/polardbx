@@ -221,4 +221,4 @@ netsh interface ip add address “vEthernet (WSL)” 192.168.50.1 255.255.255.0
 
 这样可以将GMS与`server.properties`中的IP固定为`192.168.50.2`即可。
 
-同时，可以将这两行命令保存为脚本加到启动项中，这样重启系统后会自动完成IP的设置。
+确保每次重启WSL后运行该命令。
