@@ -210,7 +210,7 @@ git submodule update --init
 mysql -h 127.0.0.1 -upolardbx_root -p123456 -P8527
 ```
 
-## WSL2无法固定IP
+## 固定WSL的IP地址
 
 注意，WSL2每次重启都会重新分配一个IP，这会导致GMS与`server.properties`中记录的IP失效。有一个折中的方法，执行以下命令，会分别为WSL2与Windows分配一个指定的IP地址：
 
