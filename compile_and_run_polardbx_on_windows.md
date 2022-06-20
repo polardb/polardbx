@@ -209,3 +209,16 @@ git submodule update --init
 ```
 mysql -h 127.0.0.1 -upolardbx_root -p123456 -P8527
 ```
+
+## WSL2无法固定IP
+
+注意，WSL2每次重启都会重新分配一个IP，这会导致GMS与`server.properties`中记录的IP失效。有一个折中的方法，执行以下命令，会分别为WSL2与Windows分配一个指定的IP地址：
+
+```
+wsl -d CentOS7 -u root ip addr add 192.168.50.2/24 broadcast 192.168.50.255 dev eth0 label eth0:1
+netsh interface ip add address “vEthernet (WSL)” 192.168.50.1 255.255.255.0
+```
+
+这样可以将GMS与`server.properties`中的IP固定为`192.168.50.2`即可。
+
+同时，可以将这两行命令保存为脚本加到启动项中，这样重启系统后会自动完成IP的设置。
