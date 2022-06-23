@@ -1,0 +1,6 @@
+# plus packages provided by Aliyun Linux dev team
+[plus]
+name=AliYun-2.1903 - Plus - mirrors.aliyun.com
+baseurl=http://mirrors.aliyun.com/alinux/2.1903/plus/$basearch/
+gpgcheck=1
+gpgkey=http://mirrors.aliyun.com/alinux/RPM-GPG-KEY-ALIYUN
