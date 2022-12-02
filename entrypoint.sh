@@ -22,11 +22,11 @@ if [ x"$mode" = "x" ]; then
 fi
 
 function cn_pid() {
-  jps | grep Tddl | cut -d ' ' -f 1
+  ps auxf | grep java | grep TddlLauncher | cut -d ' ' -f 1
 }
 
 function cdc_pid() {
-  jps | grep DaemonBootstrap | cut -d ' ' -f 1
+  ps auxf | grep java | grep DaemonBootstrap | cut -d ' ' -f 1
 }
 
 function dn_pid() {
