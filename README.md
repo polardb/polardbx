@@ -61,9 +61,29 @@ PolarDB-X provides K8S deployment mode, through which you can customize the conf
 See the [K8S Quick Start](https://github.com/ApsaraDB/galaxykube#quick-start).
 
 ### To start developing PolarDB-X
-Try the following steps to build and run PolarDB-X from the source code.
+Try the following steps under a non-root user to build and run PolarDB-X from the source code.
 
 >NOTE: CentOS 7&8 and Ubuntu 18 and higher are currently supported.
+
+0. Prerequisites
+
+Make sure the following packages are installed (for most cases, they are installed already):
+```shell
+# For CentOS
+yum install -y sudo git make redhat-lsb-core
+# For Ubuntu
+apt-get update && apt-get install -y sudo git make lsb-release
+```
+
+Create and switch to a non-root user with sudo privilege.
+```shell
+useradd -ms /bin/bash polarx
+echo "polarx:polarx" | chpasswd
+echo "polarx    ALL=(ALL)    NOPASSWD: ALL" >> /etc/sudoers
+su - polarx
+git clone https://github.com/ApsaraDB/PolarDB-X.git
+cd PolarDB-X
+```
 
 1. Build
 
@@ -83,6 +103,8 @@ This process may take more than half an hour depending on your network bandwidth
 ```shell
 ./build/run/bin/polardb-x.sh start
 ```
+
+Wait about 1 minute and use `mysql -h127.0.0.1 -P8527 -upolardbx_root` to connect to PolarDB-X.
 
 3. Stop
 
