@@ -104,7 +104,7 @@ cd PolarDB-X
 make
 ```
 
-注意：如果机器内存<=16G，请修改PolarDB-X/Makefile中编译的并行度，否则容易出现OOM，将8修改为2
+注意：如果机器内存<=16G，请修改PolarDB-X/Makefile中编译的并行度，否则容易出现OOM，将 `CPU_CORES` 修改为 2
 
 ![image](https://user-images.githubusercontent.com/2645985/173988137-dc514bdc-342f-4a4e-ae05-88f0ff44898a.png)
 
@@ -191,7 +191,19 @@ git submodule update --init
 7. 使用CentOS中的`PolarDB-X/build/run/galaxysql/conf/server.properties`内容覆盖IDEA中CN的`galaxysql\polardbx-server\src\main\resources`，并将`metaDbAddr`中的`127.0.0.1`修改为WSL的IP：
 
 ![image](https://user-images.githubusercontent.com/2645985/173987557-9b2f72aa-25a9-4149-b1c9-8a05cd26c19d.png)
-  
+
+同时，修改代码中 polardbx-server/src/main/resources/server.properties 文件:
+
+a. 将`metaDbAddr` 改为 `127.0.0.1:4886`
+
+b. 将`metaDbXprotoPort` 改为 `34886`
+
+c. 将`galaxyXProtocol` 改为 `2`
+
+d. 在shell中执行这行命令以获取`metaDbPasswd`：`mysql -h127.1 -P4886 -uroot -padmin -D polardbx_meta_db_polardbx -e "select passwd_enc from storage_info where inst_kind=2"`
+
+e. 增加`metaDbPasswd=<查询到的密码>` 。
+
 8. 运行一次`com.alibaba.polardbx.server.TddlLauncher`，此时会启动失败
 
 9. 修改`TddlLauncher`的`Run/Debug Configurations`，添加`dnPasswordKey=asdf1234ghjk5678
