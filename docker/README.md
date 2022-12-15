@@ -9,13 +9,13 @@ PolarDB-X 是一款分布式数据库系统，其核心组件由 CN、DN、GMS �
 首先将镜像下载到本地：
 
 ```shell
-docker pull polardb-x
+docker pull polardbx/polardb-x
 ```
 
 之后运行如下命令启动一个 PolarDB-X 容器：
 
 ```shell
-docker run -d --name polardb-x -p 3306:8527 polardb-x
+docker run -d --name polardb-x -p 3306:8527 polardbx/polardb-x
 ```
 
 等待之后即可通过 MySQL Client 连接到 PolarDB-X ：
@@ -71,7 +71,7 @@ GalaxyEngine（即 DN ） 是 MySQL 8.x 的一个分支，可参考 MySQL 官方
 CN 的运行依赖DN和GMS，GMS可以看做一个扮演特殊角色的DN，所以在进行CN开发时，可用一个容器同时扮演DN和GMS的角色。运行这样一个容器的命令如下：
 
 ```shell
-docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v polardb-x-data:/home/polarx/PolarDB-X/build/run/galaxyengine/data polardb-x
+docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v polardb-x-data:/home/polarx/PolarDB-X/build/run/galaxyengine/data polardbx/polardb-x
 ```
 
 该命令会启动一个名叫 polardb-x 的容器，通过环境变量 `mode` 设置容器运行模式为开发模式（即 `mode=dev`）并将 MySQL 协议端口和私有协议端口暴露出来以供 CN 使用。
