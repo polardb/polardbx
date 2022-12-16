@@ -16,6 +16,8 @@
 
 source /etc/profile
 
+sudo chown -R polarx:polarx $BUILD_PATH
+
 RUN_PATH=$1
 GALAXYSQL_HOME="$RUN_PATH"/galaxysql
 GALAXYCDC_HOME="$RUN_PATH"/galaxycdc/polardbx-binlog.standalone

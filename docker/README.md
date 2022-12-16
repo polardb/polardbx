@@ -62,6 +62,34 @@ show mpp;
 
 以上过程在本地运行了一个 PolarDB-X 容器，容器中运行了1个CN进程，1个DN进程（该进程同时扮演GMS角色）和一个CDC进程，并且使用默认参数进行了系统初始化，初始化完成后通过8527端口对外提供服务。
 
+## 调整容器内 CN, CDC, DN 相关配置
+您可以通过传递环境变量 `mem_size` 来控制 CN 和 CDC 的内存占用，CN 和 CDC 会***分别***占用不超过 `mem_size(MB)` 的内存。
+同时，DN 的 buffer pool size 将设置为 `0.3*mem_size` 。此外，DN 的 my.cnf 文件以及数据文件位于容器内 `/home/polarx/PolarDB-X/build/run/galaxyengine/data` 这个目录下。
+您可以将该目录挂载到本地，然后暂停 (stop) 容器，修改 mycnf，再启动 (start) 容器。接下来，我们用一个例子说明这些配置项：
+
+1. 首先运行 polardb-x 容器，传递 mem_size 环境变量，并将数据目录挂载到本地：
+```shell
+docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 -v polardbx-data:/home/polarx/PolarDB-X/build/run/galaxyengine/data polardbx/polardb-x
+```
+上述指令，使得 CN 和 CDC 分别占用不超过 8GB 内存，即一共占用不超过 16GB 内存。
+同时，DN 的 `innodb_buffer_pool_size` 将设置为 `0.3*8192 MB`，最终取整为 2560MB。
+
+2. 如果要修改 my.cnf，待容器启动后，先暂停容器的运行
+```shell
+docker stop polardb-x 
+```
+
+3. 找到本地挂载的目录
+```shell
+docker volume inspect polardbx-data
+```
+通过上述指令找到 `Mountpoint`，进入该目录，修改其中的 `my.cnf` 然后保存
+
+4. 最后再重新启动容器
+```shell
+docker start polardb-x 
+```
+
 ## 基于 GalaxySQL 进行开发
 GalaxyEngine（即 DN ） 是 MySQL 8.x 的一个分支，可参考 MySQL 官方文档进行相关开发工作。
 

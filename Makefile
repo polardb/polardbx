@@ -1,6 +1,8 @@
 BUILD_DIR = $(shell pwd)/build
 CN_CONF = $(BUILD_DIR)/run/galaxysql/conf/server.properties
-DN_CONF =  $(BUILD_DIR)/run/galaxyengine/my.cnf
+DN_BASE_DIR = $(BUILD_DIR)/run/galaxyengine
+DN_DATA_DIR = $(DN_BASE_DIR)/data
+DN_CONF =  $(DN_DATA_DIR)/my.cnf
 CDC_CONF = $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/conf/config.properties
 CN_STARTUP = $(BUILD_DIR)/run/galaxysql/bin/startup.sh
 CDC_STARTUP = $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/bin/start.sh
@@ -89,12 +91,10 @@ cn: sources deps
 	tar xzvf polardbx-server-*.tar.gz; \
 	rm -f xzvf polardbx-server-*.tar.gz
 
-DN_DATA_DIR = $(BUILD_DIR)/run/galaxyengine/data
-DN_BASE_DIR = $(BUILD_DIR)/run/galaxyengine
-
 .PHONY: configs
 configs: gms dn cdc cn
 	# config gms & dn
+	mkdir -p $(DN_DATA_DIR)
 	echo "$$MY_CNF" > $(DN_CONF)
 	mkdir -p $(DN_DATA_DIR)/data
 	mkdir -p $(DN_DATA_DIR)/log
@@ -113,9 +113,6 @@ configs: gms dn cdc cn
 	awk -F"=" '/^metaDbAddr/{$$2="=127.0.0.1:4886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^metaDbXprotoPort/{$$2="=34886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^galaxyXProtocol/{$$2="=2";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
-	sed -i 's/Xms[0-9]\+g/Xms2g/g' $(CN_STARTUP)
-	sed -i 's/Xmx[0-9]\+g/Xmx2g/g' $(CN_STARTUP)
-	sed -i 's/-XX:MaxDirectMemorySize=[0-9]\+g//g' $(CN_STARTUP)
 	cd $(BUILD_DIR)/run/galaxysql/;	\
 	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:34886 -u polardbx_root -S "123456" 2>&1`; \
 	echo "meta: $${META}"; \
@@ -128,7 +125,7 @@ configs: gms dn cdc cn
 		exit 1; \
 	fi;	\
 	cat meta.tmp >> $(CN_CONF)
-	# config cdc	
+	# config cdc
 	cd $(BUILD_DIR)/run/galaxysql/;	\
 	META_DB_PASS=`cat meta.tmp | awk -F"=" '{print $$2}'`; \
 	awk -F"=" '/^useEncryptedPassword/{$$2="=true";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
@@ -142,8 +139,6 @@ configs: gms dn cdc cn
 	awk -F"=" '/^polarx_username/{$$2="=polardbx_root";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
 	awk -F"=" '/^polarx_password/{$$2="=UY1tQsgNvP8GJGGP8vHKKA==";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
 	sed -i 's/admin/polarx/g' $(CDC_CONF); \
-	awk -F"=" '/^mem_size/{$$2="=2048";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
-	sed -i 's/MEMORY=1204/MEMORY=512/g' $(CDC_STARTUP); \
 	rm meta.tmp
 
 .PHONY: sources
@@ -263,6 +258,13 @@ usage() {
 if [ $$# -lt 1 ]; then
     usage
 fi
+
+if [ x"$$mem_size" = "x" ]; then
+	export mem_size=2048
+fi
+
+buffer_pool_size_byte=$$(echo "scale=0; $$mem_size*1024*1024*0.3/1" | bc)
+awk -v size=$$buffer_pool_size_byte  -F"=" '/^innodb_buffer_pool_size/{$$2="="size;print;next}1' $(DN_CONF) > tmp && mv tmp $(DN_CONF)
 
 start() {
 	start_dn
@@ -417,9 +419,9 @@ innodb_ft_total_cache_size = 640000000
 innodb_io_capacity = 20000
 innodb_io_capacity_max = 40000
 innodb_lock_wait_timeout = 50
-innodb_log_buffer_size = 209715200
+innodb_log_buffer_size = 16777216
 innodb_log_checksums = ON
-innodb_log_file_size = 2147483648
+innodb_log_file_size = 134217728
 innodb_log_group_home_dir = $(DN_DATA_DIR)/mysql
 innodb_lru_scan_depth = 8192
 innodb_max_dirty_pages_pct = 75
@@ -689,9 +691,11 @@ transaction_prealloc_size = 4096
 transaction_write_set_extraction = XXHASH64
 updatable_views_with_limit = YES
 wait_timeout = 28800
+innodb_buffer_pool_size = 644245094
 
 [mysqld_safe]
 pid_file = $(DN_DATA_DIR)/run/mysql.pid
+
 endef
 export MY_CNF
 
