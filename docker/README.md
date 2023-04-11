@@ -3,9 +3,9 @@ PolarDB-X 是一款分布式数据库系统，其核心组件由 CN、DN、GMS �
 
 本文围绕 3 个场景介绍 PolarDB-X 的镜像使用方式。
 
-## 快速体验 PolarDB-X
-基于 PolarDB-X Docker 镜像，可快速在本地运行一个 PolarDB-X 实例并开始体验。
+## 1. 基于docker 快速体验 PolarDB-X
 
+基于 PolarDB-X Docker 镜像，可快速在本地运行一个 PolarDB-X 实例并开始体验。
 首先将镜像下载到本地：
 
 ```shell
@@ -62,14 +62,15 @@ show mpp;
 
 以上过程在本地运行了一个 PolarDB-X 容器，容器中运行了1个CN进程，1个DN进程（该进程同时扮演GMS角色）和一个CDC进程，并且使用默认参数进行了系统初始化，初始化完成后通过8527端口对外提供服务。
 
-## 调整容器内 CN, CDC, DN 相关配置
+## 场景2. 手工调整 docker 内组件配置
+
 您可以通过传递环境变量 `mem_size` 来控制 CN 和 CDC 的内存占用，CN 和 CDC 会***分别***占用不超过 `mem_size(MB)` 的内存。
-同时，DN 的 buffer pool size 将设置为 `0.3*mem_size` 。此外，DN 的 my.cnf 文件以及数据文件位于容器内 `/home/polarx/PolarDB-X/build/run/galaxyengine/data` 这个目录下。
+同时，DN 的 buffer pool size 将设置为 `0.3*mem_size` 。此外，DN 的 my.cnf 文件以及数据文件位于容器内 `/home/polarx/polardbx/build/run/polardbx-engine/data` 这个目录下。
 您可以将该目录挂载到本地，然后暂停 (stop) 容器，修改 mycnf，再启动 (start) 容器。接下来，我们用一个例子说明这些配置项：
 
 1. 首先运行 polardb-x 容器，传递 mem_size 环境变量，并将数据目录挂载到本地：
 ```shell
-docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 -v polardbx-data:/home/polarx/PolarDB-X/build/run/galaxyengine/data polardbx/polardb-x
+docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 -v polardbx-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
 ```
 上述指令，使得 CN 和 CDC 分别占用不超过 8GB 内存，即一共占用不超过 16GB 内存。
 同时，DN 的 `innodb_buffer_pool_size` 将设置为 `0.3*8192 MB`，最终取整为 2560MB。
@@ -90,16 +91,17 @@ docker volume inspect polardbx-data
 docker start polardb-x 
 ```
 
-## 基于 GalaxySQL 进行开发
-GalaxyEngine（即 DN ） 是 MySQL 8.x 的一个分支，可参考 MySQL 官方文档进行相关开发工作。
+## 场景3. 基于 polardbx-sql 进行开发
 
-本文主要讲解如何用 IntelliJ IDEA + PolarDB-X Docker 镜像搭建 GalaxySQL（即 CN） 开发环境。
+polardbx-engine（即 DN ） 是 MySQL 8.x 的一个分支，可参考 MySQL 官方文档进行相关开发工作。
+
+本文主要讲解如何用 IntelliJ IDEA + PolarDB-X Docker 镜像搭建 polardbx-sql（即 CN） 开发环境。
 
 ### 启动 DN&GMS 容器
 CN 的运行依赖DN和GMS，GMS可以看做一个扮演特殊角色的DN，所以在进行CN开发时，可用一个容器同时扮演DN和GMS的角色。运行这样一个容器的命令如下：
 
 ```shell
-docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v polardb-x-data:/home/polarx/PolarDB-X/build/run/galaxyengine/data polardbx/polardb-x
+docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v polardb-x-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
 ```
 
 该命令会启动一个名叫 polardb-x 的容器，通过环境变量 `mode` 设置容器运行模式为开发模式（即 `mode=dev`）并将 MySQL 协议端口和私有协议端口暴露出来以供 CN 使用。
@@ -130,7 +132,7 @@ docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v pol
 至此 CN 的运行环境便配置好了，之后可以启动 `TddlLauncher` 进行相关开发和调试。
 
 ### 远程部署 DN，本地开发 CN
-当然，上述过程也可以在远程机器上部署 docker 容器来运行 galaxyengine，
+当然，上述过程也可以在远程机器上部署 docker 容器来运行 polardbx-engine，
 对外开放相应端口（4886，34886），然后：
 1. 修改本地的 resources/server.properties 文件中的相应 ip，
 把 127.0.0.1 改成远程机器 ip。
@@ -138,7 +140,9 @@ docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v pol
 3. 修改 storage_info 的 ip 为远程机器 ip：`mysql -h127.1 -P4886 -uroot -Dpolardbx_meta_db_polardbx -e "update storage_info set ip='<远程机器 ip>'"`。
 4. 本地启动 `TddlLauncher` 即可。
 
-## mode 取值及含义
+## 附录
+
+### 1. mode 取值及含义
 
 | mode 取值  | 含义                                             |
 |----------|------------------------------------------------|
@@ -150,4 +154,12 @@ docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v pol
 | gms      | (尚未支持)gms模式，用于生产环境，该容器内仅启动一个 GMS 进程            |
 | cdc      | (尚未支持)cdc模式，用于生产环境，该容器内仅启动一个 CDC 进程            |
 
-[//]: # ( cd docker && sh image-build.sh /home/polarx/PolarDB-X/build)
+
+### 2. docker build
+
+```shell
+git clone https://github.com/polardb/polardbx.git
+make
+
+cd docker && sh image-build.sh /home/polarx/polardbx/build
+```

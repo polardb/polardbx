@@ -1,11 +1,11 @@
 BUILD_DIR = $(shell pwd)/build
-CN_CONF = $(BUILD_DIR)/run/galaxysql/conf/server.properties
-DN_BASE_DIR = $(BUILD_DIR)/run/galaxyengine
+CN_CONF = $(BUILD_DIR)/run/polardbx-sql/conf/server.properties
+DN_BASE_DIR = $(BUILD_DIR)/run/polardbx-engine
 DN_DATA_DIR = $(DN_BASE_DIR)/data
 DN_CONF =  $(DN_DATA_DIR)/my.cnf
-CDC_CONF = $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/conf/config.properties
-CN_STARTUP = $(BUILD_DIR)/run/galaxysql/bin/startup.sh
-CDC_STARTUP = $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/bin/start.sh
+CDC_CONF = $(BUILD_DIR)/run/polardbx-cdc/polardbx-binlog.standalone/conf/config.properties
+CN_STARTUP = $(BUILD_DIR)/run/polardbx-sql/bin/startup.sh
+CDC_STARTUP = $(BUILD_DIR)/run/polardbx-cdc/polardbx-binlog.standalone/bin/start.sh
 
 UNAME_S = $(shell uname -s)
 OS = $(shell lsb_release -si)
@@ -24,17 +24,17 @@ polardb-x: gms dn cn cdc configs
 	mkdir bin; \
 	echo "$$START_SCRIPT" > bin/polardb-x.sh; \
 	chmod +x bin/polardb-x.sh
-	chmod +x $(BUILD_DIR)/run/galaxysql/bin/startup.sh
-	chmod +x $(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/bin/daemon.sh
+	chmod +x $(BUILD_DIR)/run/polardbx-sql/bin/startup.sh
+	chmod +x $(BUILD_DIR)/run/polardbx-cdc/polardbx-binlog.standalone/bin/daemon.sh
 
 .PHONY: gms
 gms: sources deps
 	. /etc/profile; \
-	cd $(BUILD_DIR)/galaxyengine; \
+	cd $(BUILD_DIR)/polardbx-engine; \
 	cmake . \
 		-DFORCE_INSOURCE_BUILD=ON \
-		-DSYSCONFDIR:PATH="$(BUILD_DIR)/run/galaxyengine/u01/mysql" \
-		-DCMAKE_INSTALL_PREFIX:PATH="$(BUILD_DIR)/run/galaxyengine/u01/mysql" \
+		-DSYSCONFDIR:PATH="$(BUILD_DIR)/run/polardbx-engine/u01/mysql" \
+		-DCMAKE_INSTALL_PREFIX:PATH="$(BUILD_DIR)/run/polardbx-engine/u01/mysql" \
 		-DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo \
 		-DWITH_NORMANDY_CLUSTER=ON \
 		-DWITH_7U:BOOL=OFF \
@@ -64,7 +64,7 @@ gms: sources deps
 		-DENABLED_LOCAL_INFILE=1 \
 		-DWITH_BOOST="extra/boost/boost_1_70_0.tar.gz"; \
 	make -j $(CPU_CORES) && make install
-	rm -rf $(BUILD_DIR)/run/galaxyengine/u01/mysql/mysql-test
+	rm -rf $(BUILD_DIR)/run/polardbx-engine/u01/mysql/mysql-test
 
 .PHONY: dn
 dn: gms
@@ -72,22 +72,22 @@ dn: gms
 .PHONY: cdc
 cdc: sources deps cn
 	. /etc/profile; \
-	cd $(BUILD_DIR)/galaxycdc; \
+	cd $(BUILD_DIR)/polardbx-cdc; \
 	mvn -U clean install -Dmaven.test.skip=true -DfailIfNoTests=false -e -P release; \
-	mkdir $(BUILD_DIR)/run/galaxycdc; \
-	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/galaxycdc/;	\
-	cd $(BUILD_DIR)/run/galaxycdc/; \
+	mkdir $(BUILD_DIR)/run/polardbx-cdc; \
+	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
+	cd $(BUILD_DIR)/run/polardbx-cdc/; \
 	tar xzvf polardbx-binlog.tar.gz; \
 	rm -f polardbx-binlog.tar.gz
 
 .PHONY: cn
 cn: sources deps
 	. /etc/profile; \
-	cd $(BUILD_DIR)/galaxysql; \
+	cd $(BUILD_DIR)/polardbx-sql; \
 	mvn install -DskipTests -D env=release; \
-	mkdir $(BUILD_DIR)/run/galaxysql; \
-	cp target/polardbx-server-*.tar.gz $(BUILD_DIR)/run/galaxysql/;	\
-	cd $(BUILD_DIR)/run/galaxysql; \
+	mkdir $(BUILD_DIR)/run/polardbx-sql; \
+	cp target/polardbx-server-*.tar.gz $(BUILD_DIR)/run/polardbx-sql/;	\
+	cd $(BUILD_DIR)/run/polardbx-sql; \
 	tar xzvf polardbx-server-*.tar.gz; \
 	rm -f xzvf polardbx-server-*.tar.gz
 
@@ -105,28 +105,28 @@ configs: gms dn cdc cn
 	if [ -e "$(DN_DATA_DIR)/data/auto.cnf" ]; then \
 		echo "gms root account already initialized."; \
 	else \
-		$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) --initialize-insecure; \
+		$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) --initialize-insecure; \
 	fi ; \
-	$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
+	$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
 	# config cn
 	awk -F"=" '/^serverPort/{$$2="=8527";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^metaDbAddr/{$$2="=127.0.0.1:4886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^metaDbXprotoPort/{$$2="=34886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^galaxyXProtocol/{$$2="=2";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
-	cd $(BUILD_DIR)/run/galaxysql/;	\
+	cd $(BUILD_DIR)/run/polardbx-sql/;	\
 	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:34886 -u polardbx_root -S "123456" 2>&1`; \
 	echo "meta: $${META}"; \
 	echo "$${META}" | grep "metaDbPass" >> meta.tmp; \
 	META_DB_PASS=`cat meta.tmp | grep "metaDbPass"`; \
 	echo "metadb password: $${META_DB_PASS}"; \
-	ps aux|grep "$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}' |xargs kill; \
+	ps aux|grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}' |xargs kill; \
 	if [ "" = "$${META_DB_PASS}" ]; then \
 		echo "meta db init failed."; \
 		exit 1; \
 	fi;	\
 	cat meta.tmp >> $(CN_CONF)
 	# config cdc
-	cd $(BUILD_DIR)/run/galaxysql/;	\
+	cd $(BUILD_DIR)/run/polardbx-sql/;	\
 	META_DB_PASS=`cat meta.tmp | awk -F"=" '{print $$2}'`; \
 	awk -F"=" '/^useEncryptedPassword/{$$2="=true";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
 	awk -F"=" '/^polardbx.instance.id/{$$2="=polardbx-polardbx";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
@@ -145,19 +145,19 @@ configs: gms dn cdc cn
 sources: deps
 	mkdir -p $(BUILD_DIR)
 	cd $(BUILD_DIR); \
-	if [ -d "galaxysql" ]; then \
-		echo "galaxysql exsits."; \
+	if [ -d "polardbx-sql" ]; then \
+		echo "polardbx-sql exsits."; \
 	else \
-		git clone https://github.com/apsaradb/galaxysql.git; \
-		cd galaxysql; \
+		git clone https://github.com/polardb/polardbx-sql.git; \
+		cd polardbx-sql; \
 		git submodule update --init; \
 	fi
 	cd $(BUILD_DIR); \
-	if [ -d "galaxyengine" ]; then \
-		echo "galaxyengine exists."; \
+	if [ -d "polardbx-engine" ]; then \
+		echo "polardbx-engine exists."; \
 	else \
-		git clone https://github.com/apsaradb/galaxyengine.git;	\
-		cd galaxyengine; \
+		git clone https://github.com/polardb/polardbx-engine.git;	\
+		cd polardbx-engine; \
 		wget https://boostorg.jfrog.io/artifactory/main/release/1.70.0/source/boost_1_70_0.tar.gz; \
 		mkdir -p extra/boost; \
 		cp boost_1_70_0.tar.gz extra/boost/; \
@@ -168,17 +168,17 @@ sources: deps
 		fi ; \
 	fi
 	cd $(BUILD_DIR); \
-	if [ -d "galaxycdc" ]; then \
-		echo "galaxycdc exists."; \
+	if [ -d "polardbx-cdc" ]; then \
+		echo "polardbx-cdc exists."; \
 	else \
-		git clone https://github.com/apsaradb/galaxycdc.git; \
+		git clone https://github.com/polardb/polardbx-cdc.git; \
 	fi
 
 .PHONY: deps
 deps:
 ifeq ($(UNAME_S), Darwin)
 	@echo "Install the following tools and libraries before your building.\n"
-	@echo "tools		: cmake3, make, automake, gcc, g++, bison, git, jdk1.8+, maven3"
+	@echo "tools		: cmake3, make, automake, gcc, g++, bison, git, jdk11+, maven3"
 	@echo "libraries	: openssl1.1 \n\n"
 	@echo "Press any key to continue..."
 	@read -n 1
@@ -186,7 +186,7 @@ else
 ifeq ($(OS), CentOS)
 	sudo yum remove -y cmake
 	sudo yum install -y epel-release
-	sudo yum install -y wget java-1.8.0-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql
+	sudo yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql
 ifeq ($(V), 8)
 	sudo yum install -y libtirpc-devel dnf-plugins-core
 	sudo yum config-manager --set-enabled PowerTools
@@ -207,11 +207,11 @@ ifeq ($(V), 7)
 endif
 endif
 ifneq ($(filter $(OS), Ubuntu CentOS),)
-	if [ ! -d /opt/apache-maven-3.8.6 ]; then \
-		sudo wget https://mirrors.aliyun.com/apache/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz -P /tmp && \
-		sudo tar xf /tmp/apache-maven-3.8.6-bin.tar.gz -C /opt && \
-		sudo rm -f /tmp/apache-maven-3.8.6-bin.tar.gz && \
-		sudo ln -fs /opt/apache-maven-3.8.6 /opt/maven && \
+	if [ ! -d /opt/apache-maven-3.9.1 ]; then \
+		sudo wget https://mirrors.aliyun.com/apache/maven/maven-3/3.9.1/binaries/apache-maven-3.9.1-bin.tar.gz -P /tmp && \
+		sudo tar xf /tmp/apache-maven-3.9.1-bin.tar.gz -C /opt && \
+		sudo rm -f /tmp/apache-maven-3.9.1-bin.tar.gz && \
+		sudo ln -fs /opt/apache-maven-3.9.1 /opt/maven && \
 		echo 'export M2_HOME=/opt/maven' | sudo tee /etc/profile.d/maven.sh && \
 		echo 'export PATH=$${M2_HOME}/bin:$${PATH}' | sudo tee -a /etc/profile.d/maven.sh && \
 		sudo chmod +x /etc/profile.d/maven.sh && \
@@ -270,11 +270,11 @@ start() {
 	start_dn
 
 	echo "start cn..."
-	$(BUILD_DIR)/run/galaxysql/bin/startup.sh -P asdf1234ghjk5678
+	$(BUILD_DIR)/run/polardbx-sql/bin/startup.sh -P asdf1234ghjk5678
 	echo "cn is running."
 
 	echo "start cdc..."
-	$(BUILD_DIR)/run/galaxycdc/polardbx-binlog.standalone/bin/daemon.sh start
+	$(BUILD_DIR)/run/polardbx-cdc/polardbx-binlog.standalone/bin/daemon.sh start
 	echo "cdc is running."
 
 	echo "try polardb-x by:"
@@ -283,7 +283,7 @@ start() {
 
 start_dn() {
 	echo "start gms & dn..."
-	$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
+	$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
 	echo "gms and dn are running."
 }
 
@@ -296,13 +296,13 @@ stop() {
 
 	echo "stop cn..."
 	ps aux | grep "TddlLauncher" | grep -v "grep" | awk '{print $$2}' | xargs kill -9
-	if [ -f "$(BUILD_DIR)/run/galaxysql/bin/tddl.pid" ]; then
-		rm $(BUILD_DIR)/run/galaxysql/bin/tddl.pid
+	if [ -f "$(BUILD_DIR)/run/polardbx-sql/bin/tddl.pid" ]; then
+		rm $(BUILD_DIR)/run/polardbx-sql/bin/tddl.pid
 	fi
 	echo "cn is stopped."
 
 	echo "stop dn & gms..."
-	ps aux | grep "$(BUILD_DIR)/run/galaxyengine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill
 	echo "dn & gms are stopped."
 }
 

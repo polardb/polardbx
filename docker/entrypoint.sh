@@ -19,8 +19,8 @@ source /etc/profile
 sudo chown -R polarx:polarx $BUILD_PATH
 
 RUN_PATH=$1
-GALAXYSQL_HOME="$RUN_PATH"/galaxysql
-GALAXYCDC_HOME="$RUN_PATH"/galaxycdc/polardbx-binlog.standalone
+POLARDBX_SQL_HOME="$RUN_PATH"/polardbx-sql
+POLARDBX_CDC_HOME="$RUN_PATH"/polardbx-cdc/polardbx-binlog.standalone
 
 if [ x"$mode" = "x" ]; then
     mode="play"
@@ -51,8 +51,8 @@ function get_pid() {
 
 function stop_all() {
   polardb-x.sh stop
-  rm -f $GALAXYSQL_HOME/bin/*.pid
-  rm -f $GALAXYCDC_HOME/bin/*.pid
+  rm -f $POLARDBX_SQL_HOME/bin/*.pid
+  rm -f $POLARDBX_CDC_HOME/bin/*.pid
 }
 
 function start_polardb_x() {
