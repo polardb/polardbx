@@ -1,8 +1,8 @@
 
-[![LICENSE](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://github.com/ApsaraDB/galaxysql/blob/main/LICENSE)
+[![LICENSE](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://github.com/polardb/polardbx-sql/blob/main/LICENSE)
 [![Language](https://img.shields.io/badge/Language-Java-blue.svg)](https://www.java.com/)
 
-[中文文档](https://github.com/ApsaraDB/galaxysql/blob/main/docs/zh_CN/README.md)
+[中文文档](https://github.com/polardb/polardbx-sql/blob/main/docs/zh_CN/README.md)
 
 [Windows下编译运行PolarDB-X](compile_and_run_polardbx_on_windows.md)
 
@@ -53,12 +53,12 @@ The goal of PolarDB-X is to be fully compatible with MySQL, which currently incl
 ### To quick start with PolarDB-X
 PolarDB-X supports one-click installation by PXD tool, through which you can quickly try the functions of PolarDB-X.
 
-See the [PXD Quick Start](https://github.com/ApsaraDB/galaxysql/blob/main/docs/en/quickstart.md).
+See the [PXD Quick Start](https://github.com/polardb/polardbx-sql/blob/main/docs/en/quickstart.md).
 
 ### To quick start with PolarDB-X on Kubernetes
 PolarDB-X provides K8S deployment mode, through which you can customize the configuration of PolarDB-X cluster.
 
-See the [K8S Quick Start](https://github.com/ApsaraDB/galaxykube#quick-start).
+See the [K8S Quick Start](https://github.com/polardb/polardbx-operator#quick-start).
 
 ### To start developing PolarDB-X
 Try the following steps under a non-root user to build and run PolarDB-X from the source code.
@@ -81,8 +81,8 @@ useradd -ms /bin/bash polarx
 echo "polarx:polarx" | chpasswd
 echo "polarx    ALL=(ALL)    NOPASSWD: ALL" >> /etc/sudoers
 su - polarx
-git clone https://github.com/ApsaraDB/PolarDB-X.git
-cd PolarDB-X
+git clone https://github.com/polardb/polardbx.git
+cd polardbx
 ```
 
 1. Build
@@ -115,7 +115,7 @@ Wait about 1 minute and use `mysql -h127.0.0.1 -P8527 -upolardbx_root` to connec
 The core features of PolarDB-X community version will be consistent with the commercial version, and more manuals can be found in [the documentations of the commercial version](https://www.alibabacloud.com/help/doc-detail/71252.htm). The documentations of the community version are being compiled and will be released to the public in the near future.
 
 ## Architecture
-![image.png](https://github.com/ApsaraDB/galaxysql/blob/main/docs/architecture.png)
+![image.png](https://github.com/polardbx/polardbx-sql/blob/main/docs/architecture.png)
 PolarDB-X has a shared-nothing architecture in which compute and storage is decoupled, and the system consists of 4 core components.
 
 - CN (Compute Node)
@@ -142,26 +142,25 @@ PolarDB-X provides tool to manage the above components through K8S Operator, and
 
 | **Component Name** | **Repository** |
 | --- | --- |
-| CN (Compute Node) | [galaxysql](https://github.com/ApsaraDB/galaxysql) |
-| GMS (Global Meta Service) | [galaxyengine](https://github.com/ApsaraDB/galaxyengine) |
-| DN (Data Node) | [galaxyengine](https://github.com/ApsaraDB/galaxyengine) |
-| CDC (Change Data Capture) | [galaxycdc](https://github.com/ApsaraDB/galaxycdc) |
-| RPC | [galaxyglue](https://github.com/ApsaraDB/galaxyglue) |
-| K8S Operator | [galaxykube](https://github.com/ApsaraDB/galaxykube) |
+| CN (Compute Node) | [polardbx-sql](https://github.com/polardbx/polardbx-sql) |
+| GMS (Global Meta Service) | [polardbx-engine](https://github.com/polardb/polardbx-engine) |
+| DN (Data Node) | [polardbx-engine](https://github.com/polardb/polardbx-engine) |
+| CDC (Change Data Capture) | [polardbx-cdc](https://github.com/polardb/polardbx-cdc) |
+| RPC | [polardbx-glue](https://github.com/polardb/polardbx-glue) |
+| K8S Operator | [polardbx-operator](https://github.com/polardb/polardbx-operator) |
 
 
-
-## What is ApsaraDB GalaxySQL ？
-ApsaraDB GalaxySQL is one component of PolarDB-X, namely CN (Compute Node).
+## What is polardbx-sql  ？
+polardbx-sql is one component of PolarDB-X, namely CN (Compute Node).
 
 
 ## Licensing
-ApsaraDB GalaxySQL is under the Apache License 2.0. See the [License](https://github.com/ApsaraDB/galaxysql/blob/main/LICENSE) file for details.
+polardbx-sql is under the Apache License 2.0. See the [License](https://github.com/polardb/polardbx-sql/blob/main/LICENSE) file for details.
 
 
 ## Contributing
 
-You are welcome to make contributions to PolarDB-X. We appreciate all the contributions. For more information about how to start development and pull requests, see [contributing](https://github.com/ApsaraDB/galaxysql/blob/main/CONTRIBUTING.md).
+You are welcome to make contributions to PolarDB-X. We appreciate all the contributions. For more information about how to start development and pull requests, see [contributing](https://github.com/polardb/polardbx-sql/blob/main/CONTRIBUTING.md).
 
 
 ## Community
@@ -173,6 +172,6 @@ You can join these groups and chats to discuss and ask PolarDB-X related questio
    
 
 ## Acknowledgements
-ApsaraDB GalaxySQL references from many open source projects, such as Calcite, Presto etc. Sincere thanks to these projects and contributors.
+polardbx-sql references from many open source projects, such as Calcite, Presto etc. Sincere thanks to these projects and contributors.
 ## 
 
