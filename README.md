@@ -115,7 +115,7 @@ Wait about 1 minute and use `mysql -h127.0.0.1 -P8527 -upolardbx_root` to connec
 The core features of PolarDB-X community version will be consistent with the commercial version, and more manuals can be found in [the documentations of the commercial version](https://www.alibabacloud.com/help/doc-detail/71252.htm). The documentations of the community version are being compiled and will be released to the public in the near future.
 
 ## Architecture
-![image.png](https://github.com/polardbx/polardbx-sql/blob/main/docs/architecture.png)
+![image.png](https://github.com/polardb/polardbx-sql/blob/main/docs/architecture.png)
 PolarDB-X has a shared-nothing architecture in which compute and storage is decoupled, and the system consists of 4 core components.
 
 - CN (Compute Node)
@@ -142,7 +142,7 @@ PolarDB-X provides tool to manage the above components through K8S Operator, and
 
 | **Component Name** | **Repository** |
 | --- | --- |
-| CN (Compute Node) | [polardbx-sql](https://github.com/polardbx/polardbx-sql) |
+| CN (Compute Node) | [polardbx-sql](https://github.com/polardb/polardbx-sql) |
 | GMS (Global Meta Service) | [polardbx-engine](https://github.com/polardb/polardbx-engine) |
 | DN (Data Node) | [polardbx-engine](https://github.com/polardb/polardbx-engine) |
 | CDC (Change Data Capture) | [polardbx-cdc](https://github.com/polardb/polardbx-cdc) |
