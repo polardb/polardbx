@@ -119,7 +119,7 @@ configs: gms dn cdc cn
 	echo "$${META}" | grep "metaDbPass" >> meta.tmp; \
 	META_DB_PASS=`cat meta.tmp | grep "metaDbPass"`; \
 	echo "metadb password: $${META_DB_PASS}"; \
-	ps aux|grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}' |xargs kill; \
+	ps aux|grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}' |xargs kill -9; \
 	if [ "" = "$${META_DB_PASS}" ]; then \
 		echo "meta db init failed."; \
 		exit 1; \
@@ -260,7 +260,7 @@ if [ $$# -lt 1 ]; then
 fi
 
 if [ x"$$mem_size" = "x" ]; then
-	export mem_size=2048
+	export mem_size=4096
 fi
 
 buffer_pool_size_byte=$$(echo "scale=0; $$mem_size*1024*1024*0.3/1" | bc)
@@ -302,7 +302,7 @@ stop() {
 	echo "cn is stopped."
 
 	echo "stop dn & gms..."
-	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
 	echo "dn & gms are stopped."
 }
 
