@@ -12,10 +12,10 @@ PolarDB-X 是一款分布式数据库系统，其核心组件由 CN、DN、GMS �
 docker pull polardbx/polardb-x
 ```
 
-之后运行如下命令启动一个 PolarDB-X 容器：
+之后运行如下命令启动一个 PolarDB-X 容器，建议docker内存>=12GB (CN/DN/CDC各自分配mem_size=4096)：
 
 ```shell
-docker run -d --name polardb-x -p 3306:8527 polardbx/polardb-x
+docker run -d --name polardb-x -m 12GB -p 3306:8527 polardbx/polardb-x
 ```
 
 等待之后即可通过 MySQL Client 连接到 PolarDB-X ：
@@ -72,7 +72,7 @@ show mpp;
 ```shell
 docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 -v polardbx-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
 ```
-上述指令，使得 CN 和 CDC 分别占用不超过 8GB 内存，即一共占用不超过 16GB 内存。
+上述指令，使得 CN 、DN、 CDC 分别占用不超过 8GB 内存，即一共占用不超过 24GB 内存。
 同时，DN 的 `innodb_buffer_pool_size` 将设置为 `0.3*8192 MB`，最终取整为 2560MB。
 
 2. 如果要修改 my.cnf，待容器启动后，先暂停容器的运行
