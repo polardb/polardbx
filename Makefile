@@ -302,7 +302,7 @@ stop() {
 	echo "cn is stopped."
 
 	echo "stop dn & gms..."
-	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -15
 	echo "dn & gms are stopped."
 }
 
