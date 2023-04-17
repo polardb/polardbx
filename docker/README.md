@@ -15,7 +15,7 @@ docker pull polardbx/polardb-x
 之后运行如下命令启动一个 PolarDB-X 容器，建议docker内存>=12GB (CN/DN/CDC各自分配mem_size=4096)：
 
 ```shell
-docker run -d --name polardb-x -m 12GB -p 3306:8527 polardbx/polardb-x
+docker run -d --name polardb-x -m 12GB -p 3306:8527 -v /etc/localtime:/etc/localtime polardbx/polardb-x
 ```
 
 等待之后即可通过 MySQL Client 连接到 PolarDB-X ：
@@ -70,7 +70,7 @@ show mpp;
 
 1. 首先运行 polardb-x 容器，传递 mem_size 环境变量，并将数据目录挂载到本地：
 ```shell
-docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 -v polardbx-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
+docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 -v /etc/localtime:/etc/localtime -v polardbx-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
 ```
 上述指令，使得 CN 、DN、 CDC 分别占用不超过 8GB 内存，即一共占用不超过 24GB 内存。
 同时，DN 的 `innodb_buffer_pool_size` 将设置为 `0.3*8192 MB`，最终取整为 2560MB。
@@ -101,7 +101,7 @@ polardbx-engine（即 DN ） 是 MySQL 8.x 的一个分支，可参考 MySQL 官
 CN 的运行依赖DN和GMS，GMS可以看做一个扮演特殊角色的DN，所以在进行CN开发时，可用一个容器同时扮演DN和GMS的角色。运行这样一个容器的命令如下：
 
 ```shell
-docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v polardb-x-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
+docker run -d --name polardb-x --env mode=dev -p 4886:4886 -p 34886:34886 -v /etc/localtime:/etc/localtime -v polardb-x-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
 ```
 
 该命令会启动一个名叫 polardb-x 的容器，通过环境变量 `mode` 设置容器运行模式为开发模式（即 `mode=dev`）并将 MySQL 协议端口和私有协议端口暴露出来以供 CN 使用。

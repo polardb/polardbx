@@ -19,5 +19,7 @@ WORKDIR /home/polarx
 ADD --chown=polarx run.tar.gz $BUILD_PATH
 COPY --chown=polarx entrypoint.sh entrypoint.sh
 
+ENV TZ Asia/Shanghai
+
 ENV BUILD_PATH=$BUILD_PATH
 ENTRYPOINT /home/polarx/entrypoint.sh $BUILD_PATH/run

@@ -39,14 +39,14 @@ function dn_pid() {
 }
 
 function get_pid() {
-    if [ x"$mode" = x"play" ]; then
-        cn_pid
-    elif [ x"$mode" = x"dev" ]; then
-        dn_pid
-    else
-        echo "mode=$mode does not support yet."
-        echo ""
-    fi
+  if [ x"$mode" = x"play" ]; then
+      cn_pid
+  elif [ x"$mode" = x"dev" ]; then
+      dn_pid
+  else
+      echo "mode=$mode does not support yet."
+      echo ""
+  fi
 }
 
 function stop_all() {
@@ -106,9 +106,24 @@ function start() {
   start_process
 }
 
+function waitterm() {
+  local PID
+  # any process to block
+  tail -f /dev/null &
+  PID="$!"
+  # setup trap, could do nothing, or just kill the blocker
+  trap "kill -TERM ${PID}" TERM INT
+  # wait for signal, ignore wait exit code
+  wait "${PID}" || true
+  # clear trap
+  trap - TERM INT
+  # wait blocker, ignore blocker exit code
+  wait "${PID}" 2>/dev/null || true
+}
+
 # Retry start and watch
 
-retry_interval=5
+retry_interval=30
 retry_cnt=0
 retry_limit=10
 if [[ "$#" -ge 2 ]]; then
@@ -117,7 +132,10 @@ fi
 
 while [[ $retry_cnt -lt $retry_limit ]]; do
   start
-  watch
+
+  if report_pid; then
+    break 
+  fi
 
   ((retry_cnt++))
 
@@ -125,6 +143,10 @@ while [[ $retry_cnt -lt $retry_limit ]]; do
     sleep $retry_interval
   fi
 done
+
+waitterm
+
+stop_all
 
 # Abort.
 exit 1
