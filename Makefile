@@ -266,16 +266,47 @@ fi
 buffer_pool_size_byte=$$(echo "scale=0; $$mem_size*1024*1024*0.3/1" | bc)
 awk -v size=$$buffer_pool_size_byte  -F"=" '/^innodb_buffer_pool_size/{$$2="="size;print;next}1' $(DN_CONF) > tmp && mv tmp $(DN_CONF)
 
+
+retry() {
+  retry_interval=5
+  retry_cnt=0
+  retry_limit=10
+  succeed=0
+  while [ $${retry_cnt} -lt $${retry_limit} ]; do
+    if [[ $$1 ]]; then
+      succeed=1
+      return 0
+    fi
+
+    echo "Fail to $$1, retry..."
+
+    ((retry_cnt++))
+
+    sleep "$${retry_interval}"
+  done
+
+  if [ $${succeed} -eq 0 ]; then
+    echo "$$1 failed."
+    return 1
+  fi
+  return 0
+}
+
 start() {
 	start_dn
 
 	echo "start cn..."
 	$(BUILD_DIR)/run/polardbx-sql/bin/startup.sh -P asdf1234ghjk5678
-	echo "cn is running."
+	echo "cn starts."
 
 	echo "start cdc..."
 	$(BUILD_DIR)/run/polardbx-cdc/polardbx-binlog.standalone/bin/daemon.sh start
-	echo "cdc is running."
+	echo "cdc starts."
+
+	if ! retry "mysql -h127.1 -P8527 -upolardbx_root -e 'SELECT 1'"; then
+	  echo "cn starts failed."
+	  exit 1
+	fi
 
 	echo "try polardb-x by:"
 	echo "mysql -h127.1 -P8527 -upolardbx_root"
@@ -284,6 +315,10 @@ start() {
 start_dn() {
 	echo "start gms & dn..."
 	$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
+	if ! retry "mysql -h127.1 -P4886 -uroot -e 'SELECT 1'"; then
+	  echo "gms and dn start failed."
+	  exit 1
+	fi
 	echo "gms and dn are running."
 }
 
@@ -303,6 +338,7 @@ stop() {
 
 	echo "stop dn & gms..."
 	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -15
+	sleep 10
 	echo "dn & gms are stopped."
 }
 
