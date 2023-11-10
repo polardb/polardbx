@@ -73,12 +73,13 @@ dn: gms
 cdc: sources deps cn
 	. /etc/profile; \
 	cd $(BUILD_DIR)/polardbx-cdc; \
-	mvn -U clean install -Dmaven.test.skip=true -DfailIfNoTests=false -e -P release; \
+	mvn clean; \
+	mvn -U install -Dmaven.test.skip=true -DfailIfNoTests=false -e -P release; \
 	mkdir $(BUILD_DIR)/run/polardbx-cdc; \
-	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
+	cp polardbx-cdc-assemble/target/polardbx-binlog-*.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
 	cd $(BUILD_DIR)/run/polardbx-cdc/; \
-	tar xzvf polardbx-binlog.tar.gz; \
-	rm -f polardbx-binlog.tar.gz
+	tar xzvf polardbx-binlog-*.tar.gz; \
+	rm -f polardbx-binlog-*.tar.gz
 
 .PHONY: cn
 cn: sources deps
@@ -207,11 +208,11 @@ ifeq ($(V), 7)
 endif
 endif
 ifneq ($(filter $(OS), Ubuntu CentOS),)
-	if [ ! -d /opt/apache-maven-3.9.1 ]; then \
-		sudo wget https://mirrors.aliyun.com/apache/maven/maven-3/3.9.1/binaries/apache-maven-3.9.1-bin.tar.gz -P /tmp && \
-		sudo tar xf /tmp/apache-maven-3.9.1-bin.tar.gz -C /opt && \
-		sudo rm -f /tmp/apache-maven-3.9.1-bin.tar.gz && \
-		sudo ln -fs /opt/apache-maven-3.9.1 /opt/maven && \
+	if [ ! -d /opt/apache-maven-3.9.5 ]; then \
+		sudo wget https://mirrors.aliyun.com/apache/maven/maven-3/3.9.5/binaries/apache-maven-3.9.5-bin.tar.gz -P /tmp && \
+		sudo tar xf /tmp/apache-maven-3.9.5-bin.tar.gz -C /opt && \
+		sudo rm -f /tmp/apache-maven-3.9.5-bin.tar.gz && \
+		sudo ln -fs /opt/apache-maven-3.9.5 /opt/maven && \
 		echo 'export M2_HOME=/opt/maven' | sudo tee /etc/profile.d/maven.sh && \
 		echo 'export PATH=$${M2_HOME}/bin:$${PATH}' | sudo tee -a /etc/profile.d/maven.sh && \
 		sudo chmod +x /etc/profile.d/maven.sh && \
@@ -339,6 +340,7 @@ stop() {
 	echo "stop dn & gms..."
 	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -15
 	sleep 10
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
 	echo "dn & gms are stopped."
 }
 
@@ -438,7 +440,6 @@ innodb_data_file_purge_max_size = 128
 innodb_data_home_dir = $(DN_DATA_DIR)/mysql
 innodb_deadlock_detect = ON
 innodb_disable_sort_file_cache = ON
-innodb_equal_gcn_visible = 0
 innodb_flush_log_at_trx_commit = 1
 innodb_flush_method = O_DIRECT
 innodb_flush_neighbors = 0
@@ -482,7 +483,6 @@ innodb_read_ahead_threshold = 0
 innodb_read_io_threads = 4
 innodb_rollback_on_timeout = OFF
 innodb_rollback_segments = 128
-innodb_snapshot_update_gcn = 1
 innodb_sort_buffer_size = 1048576
 innodb_spin_wait_delay = 6
 innodb_stats_auto_recalc = ON
@@ -845,3 +845,4 @@ index 8a81734e..30ec6a08 100644
 endef
 
 export VERSION_PATCH
+
