@@ -271,7 +271,7 @@ awk -v size=$$buffer_pool_size_byte  -F"=" '/^innodb_buffer_pool_size/{$$2="="si
 retry() {
   retry_interval=5
   retry_cnt=0
-  retry_limit=10
+  retry_limit=100
   succeed=0
   while [ $${retry_cnt} -lt $${retry_limit} ]; do
     if [[ $$1 ]]; then
@@ -296,9 +296,9 @@ retry() {
 start() {
 	start_dn
 
-	echo "start cn..."
-	$(BUILD_DIR)/run/polardbx-sql/bin/startup.sh -P asdf1234ghjk5678
-	echo "cn starts."
+	sleep 30
+
+	start_cn
 
 	echo "start cdc..."
 	$(BUILD_DIR)/run/polardbx-cdc/polardbx-binlog.standalone/bin/daemon.sh start
@@ -315,12 +315,19 @@ start() {
 
 start_dn() {
 	echo "start gms & dn..."
-	$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
-	if ! retry "mysql -h127.1 -P4886 -uroot -e 'SELECT 1'"; then
+	($(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe --defaults-file=$(DN_CONF) &)
+	if ! retry "mysql -h127.1 -P4886 -uroot -e 'create table if not exists polardbx_meta_db_polardbx.__test_avaliable__(id int)'"; then
 	  echo "gms and dn start failed."
 	  exit 1
 	fi
 	echo "gms and dn are running."
+	mysql -h127.1 -P4886 -uroot -e 'drop table if exists polardbx_meta_db_polardbx.__test_avaliable__'
+}
+
+start_cn() {
+	echo "start cn..."
+	$(BUILD_DIR)/run/polardbx-sql/bin/startup.sh -P asdf1234ghjk5678
+	echo "cn starts."
 }
 
 stop() {
@@ -338,8 +345,10 @@ stop() {
 	echo "cn is stopped."
 
 	echo "stop dn & gms..."
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe" | grep -v "grep" | awk '{print $$2}'| xargs kill -15
 	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -15
 	sleep 10
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
 	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
 	echo "dn & gms are stopped."
 }

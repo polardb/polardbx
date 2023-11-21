@@ -18,7 +18,7 @@ source /etc/profile
 
 sudo chown -R polarx:polarx $BUILD_PATH
 
-RUN_PATH=$1
+RUN_PATH=$BUILD_PATH/run
 POLARDBX_SQL_HOME="$RUN_PATH"/polardbx-sql
 POLARDBX_CDC_HOME="$RUN_PATH"/polardbx-cdc/polardbx-binlog.standalone
 
@@ -35,7 +35,7 @@ function cdc_pid() {
 }
 
 function dn_pid() {
-  ps aux | grep mysqld | grep -v "grep" | awk '{print $2}'
+  ps aux | grep mysqld_safe | grep -v "grep" | awk '{print $2}'
 }
 
 function get_pid() {
@@ -121,30 +121,17 @@ function waitterm() {
   wait "${PID}" 2>/dev/null || true
 }
 
-# Retry start and watch
+# Start and watch
+start
 
-retry_interval=30
-retry_cnt=0
-retry_limit=10
-if [[ "$#" -ge 2 ]]; then
-  retry_limit=$2
-fi
-
-while [[ $retry_cnt -lt $retry_limit ]]; do
-  start
-
-  if report_pid; then
-    break 
-  fi
-
-  ((retry_cnt++))
-
-  if [[ $retry_cnt -lt $retry_limit ]]; then
-    sleep $retry_interval
-  fi
-done
+# Enable watchdog
+bash watchdog.sh &
+watchdog_pid="$!"
 
 waitterm
+
+# Disable watchdog
+kill -9 ${watchdog_pid}
 
 stop_all
 

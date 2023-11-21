@@ -6,6 +6,7 @@ build_path=$1
 
 rm -rf tmp && mkdir -p tmp
 cp -f entrypoint.sh tmp/
+cp -f watchdog.sh tmp/
 cp -f Dockerfile tmp/
 old_pwd=$(pwd)
 cd "$build_path"
