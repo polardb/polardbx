@@ -76,10 +76,10 @@ cdc: sources deps cn
 	mvn clean; \
 	mvn -U install -Dmaven.test.skip=true -DfailIfNoTests=false -e -P release; \
 	mkdir $(BUILD_DIR)/run/polardbx-cdc; \
-	cp polardbx-cdc-assemble/target/polardbx-binlog-*.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
+	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
 	cd $(BUILD_DIR)/run/polardbx-cdc/; \
-	tar xzvf polardbx-binlog-*.tar.gz; \
-	rm -f polardbx-binlog-*.tar.gz
+	tar xzvf polardbx-binlog.tar.gz; \
+	rm -f polardbx-binlog.tar.gz
 
 .PHONY: cn
 cn: sources deps
