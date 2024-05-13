@@ -12,7 +12,7 @@ PolarDB-X 是一款分布式数据库系统，其核心组件由 CN、DN、GMS �
 docker pull polardbx/polardb-x
 ```
 
-之后运行如下命令启动一个 PolarDB-X 容器，建议docker内存>=12GB (CN/DN/CDC各自分配mem_size=4096)：
+之后运行如下命令启动一个 PolarDB-X 容器，建议docker内存>=12GB (CN/DN/CDC各自分配mem_size=4096MB)：
 
 ```shell
 docker run -d --name polardb-x -m 12GB -p 3306:8527 -v /etc/localtime:/etc/localtime polardbx/polardb-x
@@ -68,9 +68,9 @@ show mpp;
 同时，DN 的 buffer pool size 将设置为 `0.3*mem_size` 。此外，DN 的 my.cnf 文件以及数据文件位于容器内 `/home/polarx/polardbx/build/run/polardbx-engine/data` 这个目录下。
 您可以将该目录挂载到本地，然后暂停 (stop) 容器，修改 mycnf，再启动 (start) 容器。接下来，我们用一个例子说明这些配置项：
 
-1. 首先运行 polardb-x 容器，传递 mem_size 环境变量，并将数据目录挂载到本地：
+1. 首先运行 polardb-x 容器，传递 mem_size 和 disk_size (用于配置 CDC) 环境变量 (单位都是 MB)，并将数据目录挂载到本地：
 ```shell
-docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 -v /etc/localtime:/etc/localtime -v polardbx-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
+docker run -d --name polardb-x -p 3306:8527 --env mem_size=8192 --env disk_size=20480 -v /etc/localtime:/etc/localtime -v polardbx-data:/home/polarx/polardbx/build/run/polardbx-engine/data polardbx/polardb-x
 ```
 上述指令，使得 CN 、DN、 CDC 分别占用不超过 8GB 内存，即一共占用不超过 24GB 内存。
 同时，DN 的 `innodb_buffer_pool_size` 将设置为 `0.3*8192 MB`，最终取整为 2560MB。

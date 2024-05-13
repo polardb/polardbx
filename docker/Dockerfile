@@ -3,7 +3,7 @@ FROM centos:7
 ARG BUILD_PATH=/home/polarx/polardbx/build
 
 RUN yum install sudo hostname telnet net-tools vim tree less file java-11-openjdk-devel -y && \
-    yum install openssl-devel ncurses-devel libaio-devel mysql -y && \
+    yum install openssl-devel ncurses-devel libaio-devel mysql snappy-devel -y && \
     yum clean all && rm -rf /var/cache/yum && rm -rf /var/tmp/yum-*
 
 RUN useradd -ms /bin/bash polarx && \
@@ -19,6 +19,8 @@ WORKDIR /home/polarx
 ADD --chown=polarx run.tar.gz $BUILD_PATH
 COPY --chown=polarx entrypoint.sh entrypoint.sh
 COPY --chown=polarx watchdog.sh watchdog.sh
+
+RUN echo t-polardbx-cdc-5.4.19-20240430_1234567.noarch.rpm > $BUILD_PATH/../../releaseNote;
 
 ENV TZ Asia/Shanghai
 
