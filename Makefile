@@ -12,8 +12,24 @@ OS = $(shell lsb_release -si)
 V = $(shell lsb_release -r | awk '{print $$2}'|awk -F"." '{print $$1}')
 CPU_CORES = $(shell cat /proc/cpuinfo | grep processor| wc -l)
 
-export CFLAGS := -O3 -g -fexceptions -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing
-export CXXFLAGS := -O3 -g -fexceptions -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing
+CFLAGS = -O3 -g -fexceptions  -static-libgcc -static-libstdc++ -fno-omit-frame-pointer -fno-strict-aliasing
+CXXFLAGS = -O3 -g -fexceptions -static-libgcc -static-libstdc++ -fno-omit-frame-pointer -fno-strict-aliasing
+WITH_JEMALLOC = yes
+
+ARCH := $(shell uname -m)
+ifeq ($(ARCH), aarch64)
+  CFLAGS = -O3 -g -fexceptions -fno-strict-aliasing -Wl,-Bsymbolic
+  CXXFLAGS = -O3 -g -fexceptions -fno-strict-aliasing -Wl,-Bsymbolic
+  WITH_JEMALLOC = no
+endif
+
+CC=gcc
+CXX=g++
+
+export CFLAGS
+export CXXFLAGS
+export CC
+export CXX
 
 .PHONY: polardb-x
 polardb-x: gms dn cn cdc configs
@@ -30,40 +46,42 @@ polardb-x: gms dn cn cdc configs
 .PHONY: gms
 gms: sources deps
 	. /etc/profile; \
-	cd $(BUILD_DIR)/polardbx-engine; \
+	cd $(BUILD_DIR)/polardbx-engine && cat extra/boost/boost_1_77_0.tar.bz2.*  > extra/boost/boost_1_77_0.tar.bz2; \
 	cmake . \
 		-DFORCE_INSOURCE_BUILD=ON \
 		-DSYSCONFDIR:PATH="$(BUILD_DIR)/run/polardbx-engine/u01/mysql" \
 		-DCMAKE_INSTALL_PREFIX:PATH="$(BUILD_DIR)/run/polardbx-engine/u01/mysql" \
-		-DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo \
-		-DWITH_NORMANDY_CLUSTER=ON \
-		-DWITH_7U:BOOL=OFF \
-		-DWITH_PROTOBUF:STRING=bundled \
-		-DINSTALL_LAYOUT=STANDALONE \
-		-DMYSQL_MAINTAINER_MODE=0 \
-		-DWITH_EMBEDDED_SERVER=0 \
-		-DWITH_SSL=openssl \
-		-DWITH_ZLIB=bundled \
-		-DWITH_MYISAM_STORAGE_ENGINE=1 \
-		-DWITH_INNOBASE_STORAGE_ENGINE=1 \
-		-DWITH_PARTITION_STORAGE_ENGINE=1 \
-		-DWITH_CSV_STORAGE_ENGINE=1 \
-		-DWITH_ARCHIVE_STORAGE_ENGINE=1 \
-		-DWITH_BLACKHOLE_STORAGE_ENGINE=1 \
-		-DWITH_FEDERATED_STORAGE_ENGINE=1 \
+		-DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo  \
+		-DWITH_JEMALLOC="$(WITH_JEMALLOC)"   \
+		-DWITH_PROTOBUF:STRING=bundled     \
+		-DINSTALL_LAYOUT=STANDALONE        \
+		-DMYSQL_MAINTAINER_MODE=0          \
+		-DWITH_SSL=openssl                 \
+		-DWITH_ZLIB=bundled                \
+		-DWITH_MYISAM_STORAGE_ENGINE=1     \
+		-DWITH_INNOBASE_STORAGE_ENGINE=1   \
+		-DWITH_PARTITION_STORAGE_ENGINE=1  \
+		-DWITH_CSV_STORAGE_ENGINE=1        \
+		-DWITH_ARCHIVE_STORAGE_ENGINE=1    \
+		-DWITH_BLACKHOLE_STORAGE_ENGINE=1  \
+		-DWITH_FEDERATED_STORAGE_ENGINE=1  \
 		-DWITH_PERFSCHEMA_STORAGE_ENGINE=1 \
-		-DWITH_EXAMPLE_STORAGE_ENGINE=0 \
-		-DWITH_TEMPTABLE_STORAGE_ENGINE=1 \
-		-DWITH_XENGINE_STORAGE_ENGINE=0 \
-		-DUSE_CTAGS=0 \
-		-DWITH_EXTRA_CHARSETS=all \
-		-DWITH_DEBUG=0 \
-		-DENABLE_DEBUG_SYNC=0 \
-		-DENABLE_DTRACE=0 \
-		-DENABLED_PROFILING=1 \
-		-DENABLED_LOCAL_INFILE=1 \
-		-DWITH_BOOST="extra/boost/boost_1_70_0.tar.gz"; \
-	make -j $(CPU_CORES) && make install
+		-DWITH_EXAMPLE_STORAGE_ENGINE=0    \
+		-DWITH_TEMPTABLE_STORAGE_ENGINE=1  \
+		-DUSE_CTAGS=0                      \
+		-DWITH_EXTRA_CHARSETS=all          \
+		-DWITH_DEBUG=0                     \
+		-DENABLE_DEBUG_SYNC=0              \
+		-DENABLE_DTRACE=0                  \
+		-DENABLED_PROFILING=1              \
+		-DENABLED_LOCAL_INFILE=1           \
+		-DWITH_BOOST="./extra/boost/boost_1_77_0.tar.bz2" \
+		-DPOLARDBX_RELEASE_DATE="20240430" \
+		-DPOLARDBX_ENGINE_VERSION="8.4.19" \
+		-DPOLARDBX_VERSION_EXTRA="X-Cluster" \
+		-DWITH_TESTS=0                     \
+		-DWITH_UNIT_TESTS=0; 			   \
+	make -j $(CPU_CORES) install
 	rm -rf $(BUILD_DIR)/run/polardbx-engine/u01/mysql/mysql-test
 
 .PHONY: dn
@@ -76,16 +94,16 @@ cdc: sources deps cn
 	mvn clean; \
 	mvn -U install -Dmaven.test.skip=true -DfailIfNoTests=false -e -P release; \
 	mkdir $(BUILD_DIR)/run/polardbx-cdc; \
-	cp polardbx-cdc-assemble/target/polardbx-binlog-*.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
+	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
 	cd $(BUILD_DIR)/run/polardbx-cdc/; \
-	tar xzvf polardbx-binlog-*.tar.gz; \
-	rm -f polardbx-binlog-*.tar.gz
+	tar xzvf polardbx-binlog.tar.gz; \
+	rm -f polardbx-binlog.tar.gz
 
 .PHONY: cn
 cn: sources deps
 	. /etc/profile; \
 	cd $(BUILD_DIR)/polardbx-sql; \
-	mvn install -DskipTests -D env=release; \
+	export RELEASE=20240430 && mvn install -DskipTests -D env=release; \
 	mkdir $(BUILD_DIR)/run/polardbx-sql; \
 	cp target/polardbx-server-*.tar.gz $(BUILD_DIR)/run/polardbx-sql/;	\
 	cd $(BUILD_DIR)/run/polardbx-sql; \
@@ -140,6 +158,14 @@ configs: gms dn cdc cn
 	awk -F"=" '/^polarx_username/{$$2="=polardbx_root";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
 	awk -F"=" '/^polarx_password/{$$2="=UY1tQsgNvP8GJGGP8vHKKA==";print;next}1' $(CDC_CONF) > tmp && mv tmp $(CDC_CONF); \
 	sed -i 's/admin/polarx/g' $(CDC_CONF); \
+	echo dnPasswordKey=asdf1234ghjk5678 >> $(CDC_CONF); \
+	echo cluster_id=cluster_1 >> $(CDC_CONF); \
+	echo ins_id=1001 >> $(CDC_CONF); \
+	echo ins_ip=127.0.0.1 >> $(CDC_CONF); \
+	echo daemon_port=3007 >> $(CDC_CONF); \
+	echo ssh_port=3008 >> $(CDC_CONF); \
+	echo common_ports='{"cdc1_port":"3009","cdc3_port":"3011","cdc2_port":"3010","cdc6_port":"3014","cdc5_port":"3013","cdc4_port":"3012"}' >> $(CDC_CONF); \
+	echo t-polardbx-cdc-5.4.19-20240430_1234567.noarch.rpm > $(BUILD_DIR)/../../releaseNote; \
 	rm meta.tmp
 
 .PHONY: sources
@@ -187,7 +213,7 @@ else
 ifeq ($(OS), CentOS)
 	sudo yum remove -y cmake
 	sudo yum install -y epel-release
-	sudo yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql
+	sudo yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql snappy-devel lz4-devel bzip2-devel autoconf libstdc++-static libarchive
 ifeq ($(V), 8)
 	sudo yum install -y libtirpc-devel dnf-plugins-core
 	sudo yum config-manager --set-enabled PowerTools
@@ -201,9 +227,9 @@ ifeq ($(V), 7)
 	fi
 	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
 	sudo yum install -y centos-release-scl
-	sudo yum install -y devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-binutils
-	if ! grep "source /opt/rh/devtoolset-7/enable" /etc/profile; then \
-		echo "source /opt/rh/devtoolset-7/enable" | sudo tee -a /etc/profile ; \
+	sudo yum install -y devtoolset-10
+	if ! grep "source /opt/rh/devtoolset-10/enable" /etc/profile; then \
+		echo "source /opt/rh/devtoolset-10/enable" | sudo tee -a /etc/profile ; \
 	fi
 endif
 endif
@@ -264,14 +290,22 @@ if [ x"$$mem_size" = "x" ]; then
 	export mem_size=4096
 fi
 
+if [ x"$$disk_size" = "x" ]; then
+	export disk_size=10240
+fi
+
 buffer_pool_size_byte=$$(echo "scale=0; $$mem_size*1024*1024*0.3/1" | bc)
 awk -v size=$$buffer_pool_size_byte  -F"=" '/^innodb_buffer_pool_size/{$$2="="size;print;next}1' $(DN_CONF) > tmp && mv tmp $(DN_CONF)
 
+cpu_cores=`cat /proc/cpuinfo | grep processor| wc -l`
+echo cpu_cores=$$cpu_cores >> $(CDC_CONF)
+echo mem_size=$$mem_size >> $(CDC_CONF)
+echo disk_size=$$disk_size >> $(CDC_CONF)
 
 retry() {
   retry_interval=5
   retry_cnt=0
-  retry_limit=10
+  retry_limit=100
   succeed=0
   while [ $${retry_cnt} -lt $${retry_limit} ]; do
     if [[ $$1 ]]; then
@@ -296,9 +330,9 @@ retry() {
 start() {
 	start_dn
 
-	echo "start cn..."
-	$(BUILD_DIR)/run/polardbx-sql/bin/startup.sh -P asdf1234ghjk5678
-	echo "cn starts."
+	sleep 30
+
+	start_cn
 
 	echo "start cdc..."
 	$(BUILD_DIR)/run/polardbx-cdc/polardbx-binlog.standalone/bin/daemon.sh start
@@ -315,31 +349,40 @@ start() {
 
 start_dn() {
 	echo "start gms & dn..."
-	$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld --defaults-file=$(DN_CONF) -D
-	if ! retry "mysql -h127.1 -P4886 -uroot -e 'SELECT 1'"; then
+	($(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe --defaults-file=$(DN_CONF) &)
+	if ! retry "mysql -h127.1 -P4886 -uroot -e 'create table if not exists polardbx_meta_db_polardbx.__test_avaliable__(id int)'"; then
 	  echo "gms and dn start failed."
 	  exit 1
 	fi
 	echo "gms and dn are running."
+	mysql -h127.1 -P4886 -uroot -e 'drop table if exists polardbx_meta_db_polardbx.__test_avaliable__'
+}
+
+start_cn() {
+	echo "start cn..."
+	$(BUILD_DIR)/run/polardbx-sql/bin/startup.sh -P asdf1234ghjk5678
+	echo "cn starts."
 }
 
 stop() {
 	echo "stop cdc..."
-	ps aux | grep "DaemonBootStrap" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
-	ps aux | grep "TaskBootStrap" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
-	ps aux | grep "DumperBootStrap" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
+	ps aux | grep "DaemonBootStrap" | grep -v "grep" | awk '{print $$2}'| xargs kill -9 > /dev/null 2>&1
+	ps aux | grep "TaskBootStrap" | grep -v "grep" | awk '{print $$2}'| xargs kill -9 > /dev/null 2>&1
+	ps aux | grep "DumperBootStrap" | grep -v "grep" | awk '{print $$2}'| xargs kill -9 > /dev/null 2>&1
 	echo "cdc is stopped."
 
 	echo "stop cn..."
-	ps aux | grep "TddlLauncher" | grep -v "grep" | awk '{print $$2}' | xargs kill -9
+	ps aux | grep "TddlLauncher" | grep -v "grep" | awk '{print $$2}' | xargs kill -9 > /dev/null 2>&1
 	if [ -f "$(BUILD_DIR)/run/polardbx-sql/bin/tddl.pid" ]; then
 		rm $(BUILD_DIR)/run/polardbx-sql/bin/tddl.pid
 	fi
 	echo "cn is stopped."
 
 	echo "stop dn & gms..."
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe" | grep -v "grep" | awk '{print $$2}'| xargs kill -15
 	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -15
 	sleep 10
+	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
 	ps aux | grep "$(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld" | grep -v "grep" | awk '{print $$2}'| xargs kill -9
 	echo "dn & gms are stopped."
 }
@@ -538,7 +581,6 @@ loose_consensus_max_log_size = 20971520
 loose_consensus_max_packet_size = 131072
 loose_consensus_prefetch_cache_size = 268435456
 loose_consensus_worker_thread_cnt = 8
-loose_galaxyx_port = 32886
 loose_implicit_primary_key = 1
 loose_information_schema_stats_expiry = 86400
 loose_innodb_buffer_pool_in_core_file = OFF
@@ -546,10 +588,7 @@ loose_innodb_commit_cleanout_max_rows = 9999999999
 loose_innodb_doublewrite_pages = 64
 loose_innodb_lizard_stat_enabled = OFF
 loose_innodb_log_compressed_pages = ON
-loose_innodb_log_optimize_ddl = OFF
 loose_innodb_log_write_ahead_size = 4096
-loose_innodb_multi_blocks_enabled = ON
-loose_innodb_numa_interleave = OFF
 loose_innodb_parallel_read_threads = 1
 loose_innodb_undo_retention = 1800
 loose_innodb_undo_space_reserved_size = 1024
@@ -621,14 +660,11 @@ loose_performance_schema_session_connect_attrs_size = 0
 loose_performance_schema_setup_actors_size = 10000
 loose_performance_schema_setup_objects_size = 10000
 loose_performance_schema_users_size = 10000
-loose_persist_binlog_to_redo = OFF
-loose_persist_binlog_to_redo_size_limit = 1048576
 loose_rds_audit_log_buffer_size = 16777216
 loose_rds_audit_log_enabled = OFF
 loose_rds_audit_log_event_buffer_size = 8192
 loose_rds_audit_log_row_limit = 100000
 loose_rds_audit_log_version = MYSQL_V1
-loose_recovery_apply_binlog = OFF
 loose_replica_read_timeout = 3000
 loose_rpc_port = 34886
 loose_session_track_system_variables = "*"
@@ -695,7 +731,6 @@ session_track_state_change = OFF
 sha256_password_proxy_users = OFF
 show_old_temporals = OFF
 skip_slave_start = OFF
-skip_ssl = ON
 slave_exec_mode = strict
 slave_load_tmpdir = $(DN_DATA_DIR)/tmp
 slave_net_timeout = 4
@@ -718,7 +753,7 @@ table_open_cache_instances = 16
 temptable_max_ram = 1073741824
 thread_cache_size = 100
 thread_stack = 262144
-tls_version = TLSv1,TLSv1.1,TLSv1.2
+tls_version = TLSv1.2,TLSv1.3
 tmp_table_size = 2097152
 tmpdir = $(DN_DATA_DIR)/tmp
 transaction_alloc_block_size = 8192
@@ -728,6 +763,8 @@ transaction_write_set_extraction = XXHASH64
 updatable_views_with_limit = YES
 wait_timeout = 28800
 innodb_buffer_pool_size = 644245094
+loose_optimizer_switch=index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on,use_index_extensions=on,skip_scan=off
+xa_detach_on_prepare = OFF
 
 [mysqld_safe]
 pid_file = $(DN_DATA_DIR)/run/mysql.pid
