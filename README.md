@@ -71,6 +71,10 @@ Make sure the following packages are installed (for most cases, they are install
 ```shell
 # For CentOS
 yum install -y sudo git make redhat-lsb-core
+yum remove -y cmake
+yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql snappy-devel lz4-devel bzip2-devel autoconf libstdc++-static libarchive
+yum install -y centos-release-scl
+yum install -y devtoolset-10
 # For Ubuntu
 apt-get update && apt-get install -y sudo git make lsb-release
 ```

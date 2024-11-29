@@ -76,7 +76,7 @@ gms: sources deps
 		-DENABLED_PROFILING=1              \
 		-DENABLED_LOCAL_INFILE=1           \
 		-DWITH_BOOST="./extra/boost/boost_1_77_0.tar.bz2" \
-		-DPOLARDBX_RELEASE_DATE="20240430" \
+		-DPOLARDBX_RELEASE_DATE="20241111" \
 		-DPOLARDBX_ENGINE_VERSION="8.4.19" \
 		-DPOLARDBX_VERSION_EXTRA="X-Cluster" \
 		-DWITH_TESTS=0                     \
@@ -92,7 +92,7 @@ cdc: sources deps cn
 	. /etc/profile; \
 	cd $(BUILD_DIR)/polardbx-cdc; \
 	mvn clean; \
-	mvn -U install -Dmaven.test.skip=true -DfailIfNoTests=false -e -P release; \
+	mvn -U clean install -Dmaven.test.skip=true -DfailIfNoTests=false -e -P release; \
 	mkdir $(BUILD_DIR)/run/polardbx-cdc; \
 	cp polardbx-cdc-assemble/target/polardbx-binlog.tar.gz $(BUILD_DIR)/run/polardbx-cdc/;	\
 	cd $(BUILD_DIR)/run/polardbx-cdc/; \
@@ -103,7 +103,7 @@ cdc: sources deps cn
 cn: sources deps
 	. /etc/profile; \
 	cd $(BUILD_DIR)/polardbx-sql; \
-	export RELEASE=20240430 && mvn install -DskipTests -D env=release; \
+	mvn install -DskipTests -D env=release; \
 	mkdir $(BUILD_DIR)/run/polardbx-sql; \
 	cp target/polardbx-server-*.tar.gz $(BUILD_DIR)/run/polardbx-sql/;	\
 	cd $(BUILD_DIR)/run/polardbx-sql; \
@@ -117,6 +117,7 @@ configs: gms dn cdc cn
 	echo "$$MY_CNF" > $(DN_CONF)
 	mkdir -p $(DN_DATA_DIR)/data
 	mkdir -p $(DN_DATA_DIR)/log
+	touch $(DN_DATA_DIR)/log/mysqld_safe.err
 	mkdir -p $(DN_DATA_DIR)/run
 	mkdir -p $(DN_DATA_DIR)/tmp
 	mkdir -p $(DN_DATA_DIR)/mysql
@@ -165,7 +166,7 @@ configs: gms dn cdc cn
 	echo daemon_port=3007 >> $(CDC_CONF); \
 	echo ssh_port=3008 >> $(CDC_CONF); \
 	echo common_ports='{"cdc1_port":"3009","cdc3_port":"3011","cdc2_port":"3010","cdc6_port":"3014","cdc5_port":"3013","cdc4_port":"3012"}' >> $(CDC_CONF); \
-	echo t-polardbx-cdc-5.4.19-20240430_1234567.noarch.rpm > $(BUILD_DIR)/../../releaseNote; \
+	echo t-polardbx-cdc-5.4.19-20241111_1234567.noarch.rpm > $(BUILD_DIR)/../../releaseNote; \
 	rm meta.tmp
 
 .PHONY: sources
@@ -211,9 +212,9 @@ ifeq ($(UNAME_S), Darwin)
 	@read -n 1
 else
 ifeq ($(OS), CentOS)
-	sudo yum remove -y cmake
-	sudo yum install -y epel-release
-	sudo yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql snappy-devel lz4-devel bzip2-devel autoconf libstdc++-static libarchive
+#	sudo yum remove -y cmake
+#	sudo yum install -y epel-release
+#	sudo yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql snappy-devel lz4-devel bzip2-devel autoconf libstdc++-static libarchive
 ifeq ($(V), 8)
 	sudo yum install -y libtirpc-devel dnf-plugins-core
 	sudo yum config-manager --set-enabled PowerTools
@@ -226,8 +227,8 @@ ifeq ($(V), 7)
 		sudo rm /usr/bin/cmake -f ; \
 	fi
 	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
-	sudo yum install -y centos-release-scl
-	sudo yum install -y devtoolset-10
+#	sudo yum install -y centos-release-scl
+#	sudo yum install -y devtoolset-10
 	if ! grep "source /opt/rh/devtoolset-10/enable" /etc/profile; then \
 		echo "source /opt/rh/devtoolset-10/enable" | sudo tee -a /etc/profile ; \
 	fi
@@ -349,7 +350,7 @@ start() {
 
 start_dn() {
 	echo "start gms & dn..."
-	($(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe --defaults-file=$(DN_CONF) &)
+	($(BUILD_DIR)/run/polardbx-engine/u01/mysql/bin/mysqld_safe --defaults-file=$(DN_CONF) --log-error=$(DN_DATA_DIR)/log/mysqld_safe.err &)
 	if ! retry "mysql -h127.1 -P4886 -uroot -e 'create table if not exists polardbx_meta_db_polardbx.__test_avaliable__(id int)'"; then
 	  echo "gms and dn start failed."
 	  exit 1
