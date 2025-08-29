@@ -7,7 +7,7 @@ RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo && \
     sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
 
 RUN yum install sudo hostname telnet net-tools vim tree less file java-11-openjdk-devel -y && \
-    yum install openssl-devel ncurses-devel libaio-devel mysql snappy-devel -y && \
+    yum install openssl-devel ncurses-devel libaio-devel mysql snappy-devel libtirpc-devel rpcgen -y && \
     yum clean all && rm -rf /var/cache/yum && rm -rf /var/tmp/yum-*
 
 RUN useradd -ms /bin/bash polarx && \
@@ -24,7 +24,7 @@ ADD --chown=polarx run.tar.gz $BUILD_PATH
 COPY --chown=polarx entrypoint.sh entrypoint.sh
 COPY --chown=polarx watchdog.sh watchdog.sh
 
-RUN echo t-polardbx-cdc-5.4.19-20241111_1234567.noarch.rpm > $BUILD_PATH/../../releaseNote;
+RUN echo t-polardbx-cdc-5.4.19-20250825_1234567.noarch.rpm > $BUILD_PATH/../../releaseNote;
 
 ENV TZ Asia/Shanghai
 

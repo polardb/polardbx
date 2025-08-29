@@ -72,11 +72,15 @@ Make sure the following packages are installed (for most cases, they are install
 # For CentOS
 yum install -y sudo git make redhat-lsb-core
 yum remove -y cmake
-yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql snappy-devel lz4-devel bzip2-devel autoconf libstdc++-static libarchive
+yum install -y wget java-11-openjdk-devel cmake3 automake bison openssl-devel ncurses-devel libaio-devel mysql snappy-devel lz4-devel bzip2-devel autoconf libstdc++-static libarchive libtirpc-devel rpcgen
+# For CentOS 7
 yum install -y centos-release-scl
 yum install -y devtoolset-10
+# For Alinux 3
+yum install -y gcc-c++
 # For Ubuntu
 apt-get update && apt-get install -y sudo git make lsb-release
+# And install maven3, you can find one at https://mirrors.aliyun.com/apache/maven/maven-3/
 ```
 
 Create and switch to a non-root user with sudo privilege.

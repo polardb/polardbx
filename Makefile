@@ -47,41 +47,10 @@ polardb-x: gms dn cn cdc configs
 gms: sources deps
 	. /etc/profile; \
 	cd $(BUILD_DIR)/polardbx-engine && cat extra/boost/boost_1_77_0.tar.bz2.*  > extra/boost/boost_1_77_0.tar.bz2; \
-	cmake . \
-		-DFORCE_INSOURCE_BUILD=ON \
-		-DSYSCONFDIR:PATH="$(BUILD_DIR)/run/polardbx-engine/u01/mysql" \
-		-DCMAKE_INSTALL_PREFIX:PATH="$(BUILD_DIR)/run/polardbx-engine/u01/mysql" \
-		-DCMAKE_BUILD_TYPE:STRING=RelWithDebInfo  \
-		-DWITH_JEMALLOC="$(WITH_JEMALLOC)"   \
-		-DWITH_PROTOBUF:STRING=bundled     \
-		-DINSTALL_LAYOUT=STANDALONE        \
-		-DMYSQL_MAINTAINER_MODE=0          \
-		-DWITH_SSL=openssl                 \
-		-DWITH_ZLIB=bundled                \
-		-DWITH_MYISAM_STORAGE_ENGINE=1     \
-		-DWITH_INNOBASE_STORAGE_ENGINE=1   \
-		-DWITH_PARTITION_STORAGE_ENGINE=1  \
-		-DWITH_CSV_STORAGE_ENGINE=1        \
-		-DWITH_ARCHIVE_STORAGE_ENGINE=1    \
-		-DWITH_BLACKHOLE_STORAGE_ENGINE=1  \
-		-DWITH_FEDERATED_STORAGE_ENGINE=1  \
-		-DWITH_PERFSCHEMA_STORAGE_ENGINE=1 \
-		-DWITH_EXAMPLE_STORAGE_ENGINE=0    \
-		-DWITH_TEMPTABLE_STORAGE_ENGINE=1  \
-		-DUSE_CTAGS=0                      \
-		-DWITH_EXTRA_CHARSETS=all          \
-		-DWITH_DEBUG=0                     \
-		-DENABLE_DEBUG_SYNC=0              \
-		-DENABLE_DTRACE=0                  \
-		-DENABLED_PROFILING=1              \
-		-DENABLED_LOCAL_INFILE=1           \
-		-DWITH_BOOST="./extra/boost/boost_1_77_0.tar.bz2" \
-		-DPOLARDBX_RELEASE_DATE="20241111" \
-		-DPOLARDBX_ENGINE_VERSION="8.4.19" \
-		-DPOLARDBX_VERSION_EXTRA="X-Cluster" \
-		-DWITH_TESTS=0                     \
-		-DWITH_UNIT_TESTS=0; 			   \
-	make -j $(CPU_CORES) install
+	sed -i '/-DPOLARDBX_PRODUCT_VERSION/ s/"[^"]*"/"2.4.2"/' build.sh; \
+	sed -i '/-DPOLARDBX_ENGINE_VERSION/ s/"[^"]*"/"8.4.19"/' build.sh; \
+	sed -i '/-DPOLARDBX_RELEASE_DATE/ s/"[^"]*"/"20250825"/' build.sh; \
+	sh build.sh -t release_with_debinfo -d "$(BUILD_DIR)/run/polardbx-engine/u01/mysql"
 	rm -rf $(BUILD_DIR)/run/polardbx-engine/u01/mysql/mysql-test
 
 .PHONY: dn
@@ -103,6 +72,7 @@ cdc: sources deps cn
 cn: sources deps
 	. /etc/profile; \
 	cd $(BUILD_DIR)/polardbx-sql; \
+	sed -i 's/RELEASE=`date +%Y%m%d`/RELEASE=20250825/' saveVersion.sh; \
 	mvn install -DskipTests -D env=release; \
 	mkdir $(BUILD_DIR)/run/polardbx-sql; \
 	cp target/polardbx-server-*.tar.gz $(BUILD_DIR)/run/polardbx-sql/;	\
@@ -134,7 +104,7 @@ configs: gms dn cdc cn
 	awk -F"=" '/^metaDbXprotoPort/{$$2="=34886";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	awk -F"=" '/^galaxyXProtocol/{$$2="=2";print;next}1' $(CN_CONF) > tmp && mv tmp $(CN_CONF)
 	cd $(BUILD_DIR)/run/polardbx-sql/;	\
-	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:34886 -u polardbx_root -S "123456" 2>&1`; \
+	META=`bin/startup.sh -I -P asdf1234ghjk5678 -d 127.0.0.1:4886:34886 -u polardbx_root -S "7kL9!pQa2m" 2>&1`; \
 	echo "meta: $${META}"; \
 	echo "$${META}" | grep "metaDbPass" >> meta.tmp; \
 	META_DB_PASS=`cat meta.tmp | grep "metaDbPass"`; \
@@ -166,7 +136,7 @@ configs: gms dn cdc cn
 	echo daemon_port=3007 >> $(CDC_CONF); \
 	echo ssh_port=3008 >> $(CDC_CONF); \
 	echo common_ports='{"cdc1_port":"3009","cdc3_port":"3011","cdc2_port":"3010","cdc6_port":"3014","cdc5_port":"3013","cdc4_port":"3012"}' >> $(CDC_CONF); \
-	echo t-polardbx-cdc-5.4.19-20241111_1234567.noarch.rpm > $(BUILD_DIR)/../../releaseNote; \
+	echo t-polardbx-cdc-5.4.19-20250825_1234567.noarch.rpm > $(BUILD_DIR)/../../releaseNote; \
 	rm meta.tmp
 
 .PHONY: sources
@@ -185,10 +155,6 @@ sources: deps
 		echo "polardbx-engine exists."; \
 	else \
 		git clone https://github.com/polardb/polardbx-engine.git;	\
-		cd polardbx-engine; \
-		wget https://boostorg.jfrog.io/artifactory/main/release/1.70.0/source/boost_1_70_0.tar.gz; \
-		mkdir -p extra/boost; \
-		cp boost_1_70_0.tar.gz extra/boost/; \
 		if [ "$(UNAME_S)" = "Darwin" ]; then \
 			echo "$${VERSION_PATCH}" >> macos.patch; \
 			git apply macos.patch; \
@@ -226,33 +192,33 @@ ifeq ($(V), 7)
 	if [ -e "/usr/bin/cmake" ]; then \
 		sudo rm /usr/bin/cmake -f ; \
 	fi
-	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
+	sudo ln -s /usr/bin/cmake3 /usr/bin/cmake; \
 #	sudo yum install -y centos-release-scl
 #	sudo yum install -y devtoolset-10
-	if ! grep "source /opt/rh/devtoolset-10/enable" /etc/profile; then \
+	if [ -e "/opt/rh/devtoolset-10/enable" ] && ! grep "source /opt/rh/devtoolset-10/enable" /etc/profile ; then \
 		echo "source /opt/rh/devtoolset-10/enable" | sudo tee -a /etc/profile ; \
 	fi
 endif
 endif
 ifneq ($(filter $(OS), Ubuntu CentOS),)
-	if [ ! -d /opt/apache-maven-3.9.5 ]; then \
-		sudo wget https://mirrors.aliyun.com/apache/maven/maven-3/3.9.5/binaries/apache-maven-3.9.5-bin.tar.gz -P /tmp && \
-		sudo tar xf /tmp/apache-maven-3.9.5-bin.tar.gz -C /opt && \
-		sudo rm -f /tmp/apache-maven-3.9.5-bin.tar.gz && \
-		sudo ln -fs /opt/apache-maven-3.9.5 /opt/maven && \
-		echo 'export M2_HOME=/opt/maven' | sudo tee /etc/profile.d/maven.sh && \
-		echo 'export PATH=$${M2_HOME}/bin:$${PATH}' | sudo tee -a /etc/profile.d/maven.sh && \
-		sudo chmod +x /etc/profile.d/maven.sh && \
-		echo '<mirror>' | sudo tee /opt/maven/conf/settings.xml && \
-		echo '<id>aliyunmaven</id>' | sudo tee -a /opt/maven/conf/settings.xml && \
-		echo '<mirrorOf>*</mirrorOf>' | sudo tee -a /opt/maven/conf/settings.xml && \
-		echo '<name>aliyun public</name>' | sudo tee -a /opt/maven/conf/settings.xml && \
-		echo '<url>https://maven.aliyun.com/repository/public</url>' | sudo tee -a /opt/maven/conf/settings.xml && \
-		echo '</mirror>' | sudo tee -a /opt/maven/conf/settings.xml; \
-	fi
-	if ! grep "source /etc/profile.d/maven.sh" /etc/profile; then \
-		echo "source /etc/profile.d/maven.sh" | sudo tee -a /etc/profile ; \
-	fi
+# 	if [ ! -d /opt/apache-maven-3.9.5 ]; then \
+# 		sudo wget https://mirrors.aliyun.com/apache/maven/maven-3/3.9.5/binaries/apache-maven-3.9.5-bin.tar.gz -P /tmp && \
+# 		sudo tar xf /tmp/apache-maven-3.9.5-bin.tar.gz -C /opt && \
+# 		sudo rm -f /tmp/apache-maven-3.9.5-bin.tar.gz && \
+# 		sudo ln -fs /opt/apache-maven-3.9.5 /opt/maven && \
+# 		echo 'export M2_HOME=/opt/maven' | sudo tee /etc/profile.d/maven.sh && \
+# 		echo 'export PATH=$${M2_HOME}/bin:$${PATH}' | sudo tee -a /etc/profile.d/maven.sh && \
+# 		sudo chmod +x /etc/profile.d/maven.sh && \
+# 		echo '<mirror>' | sudo tee /opt/maven/conf/settings.xml && \
+# 		echo '<id>aliyunmaven</id>' | sudo tee -a /opt/maven/conf/settings.xml && \
+# 		echo '<mirrorOf>*</mirrorOf>' | sudo tee -a /opt/maven/conf/settings.xml && \
+# 		echo '<name>aliyun public</name>' | sudo tee -a /opt/maven/conf/settings.xml && \
+# 		echo '<url>https://maven.aliyun.com/repository/public</url>' | sudo tee -a /opt/maven/conf/settings.xml && \
+# 		echo '</mirror>' | sudo tee -a /opt/maven/conf/settings.xml; \
+# 	fi
+# 	if ! grep "source /etc/profile.d/maven.sh" /etc/profile; then \
+# 		echo "source /etc/profile.d/maven.sh" | sudo tee -a /etc/profile ; \
+# 	fi
 endif
 ifeq ($(OS), Ubuntu)
 	sudo apt-get update
