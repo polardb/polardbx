@@ -9,19 +9,19 @@ PolarDB-X 是一款分布式数据库系统，其核心组件由 CN、DN、GMS �
 首先将镜像下载到本地：
 
 ```shell
-docker pull polardbx/polardb-x
+docker pull polardbx-opensource-registry.cn-beijing.cr.aliyuncs.com/polardbx/polardb-x:v2.4.2_5.4.19
 ```
 
 之后运行如下命令启动一个 PolarDB-X 容器，建议docker内存>=12GB (CN/DN/CDC各自分配mem_size=4096MB)：
 
 ```shell
-docker run -d --name polardb-x -m 12GB -p 3306:8527 -v /etc/localtime:/etc/localtime polardbx/polardb-x
+sudo docker run -d --name polardb-x -m 12GB -p 3306:8527 -v /etc/localtime:/etc/localtime polardbx-opensource-registry.cn-beijing.cr.aliyuncs.com/polardbx/polardb-x:v2.4.2_5.4.19
 ```
 
 等待之后即可通过 MySQL Client 连接到 PolarDB-X ：
 
 ```shell
-mysql -h127.0.0.1 -upolardbx_root -p123456
+mysql -h127.0.0.1 -upolardbx_root -p'7kL9!pQa2m'
 ```
 
 PolarDB-X 高度兼容 MySQL 语法，与分布式相关的特性会对 SQL 语法进行扩展，可通过以下 SQL 指令初步体验 PolarDB-X:
@@ -89,6 +89,25 @@ docker volume inspect polardbx-data
 4. 最后再重新启动容器
 ```shell
 docker start polardb-x 
+```
+
+5. 修改 polardbx_root 的密码
+
+按照以下步骤可以非标修改 polardbx_root 的密码，以下示例把密码修改为 123456。
+
+使用 polardbx_root 连接数据库，新建一个临时的用户，密码设为 123456。
+```sql
+CREATE USER 'tmp_user'@'%' IDENTIFIED BY '123456';
+```
+
+执行以下语句查看该新用户的元信息，然后使用该元信息中的密码更新 polardbx_root 的密码
+```sql
+-- 结果为 7c4a8d09ca3762af61e59520943dc26494f8941b
+SELECT password FROM metadb.user_priv WHERE user_name = 'tmp_user';
+-- 更新 polardbx_root 密码为上述字符串
+UPDATE metadb.user_priv SET password = '7c4a8d09ca3762af61e59520943dc26494f8941b' WHERE user_name = 'polardbx_root';
+-- 把临时用户删掉，这样会触发一次元信息的更新，同时更新掉 polardbx_root 的新密码
+DROP USER 'tmp_user'@'%';
 ```
 
 ## 场景3. 基于 polardbx-sql 进行开发
